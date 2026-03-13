@@ -39,4 +39,9 @@ public class InformeService {
         informerepo.deleteById(id);
         return "¡Se ha borrado el informe!";
     }
+
+    public InformeMedico buscarInformeId(String id){
+                InformeMedico informeEncontrado =  informerepo.findById(id).orElseThrow(() -> new RuntimeException("¡Error! Informe no encontrado"));
+        return informeEncontrado;
+    }
 }

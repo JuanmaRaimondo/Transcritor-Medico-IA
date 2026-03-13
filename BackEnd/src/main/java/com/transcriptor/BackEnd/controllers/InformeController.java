@@ -1,6 +1,7 @@
 package com.transcriptor.BackEnd.controllers;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -10,21 +11,37 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.transcriptor.BackEnd.Entities.InformeMedico;
 import com.transcriptor.BackEnd.services.InformeService;
+import com.transcriptor.BackEnd.services.TranscriptorService;
 
 @RestController
 @RequestMapping("/api/informe")
 public class InformeController {
     @Autowired
     private InformeService informeService;
+    @Autowired
+    private TranscriptorService transcriptorService;
     
     @PostMapping("/crear")
     public InformeMedico crearInforme(@RequestBody InformeMedico informe){
        InformeMedico informeNuevo = informeService.crearInforme(informe);
        return informeNuevo;
+    }
+
+    @PostMapping("/subir-audio")
+    public String subirAudio(@RequestParam("idpaciente") String idpaciente, @RequestParam("audio") MultipartFile archivo){
+        if(archivo.isEmpty() || !"audio/wav".equals(archivo.getContentType()) ){
+            return "Error: Por favor, suba un archivo de audio en formato WAV válido.";
+        }else{ 
+            transcriptorService.crearTranscripcion(idpaciente, archivo);
+        return "¡Se subio exitosamente el audio!";
+        }
+        
     }
 
     @GetMapping("/traerlistaInformes/{idPaciente}")
@@ -36,6 +53,15 @@ public class InformeController {
     public InformeMedico editarInforme(@PathVariable String idInforme, @RequestBody InformeMedico informe){
        InformeMedico informeAEditar = informeService.editarInforme(idInforme, informe);
        return informeAEditar;
+    }
+
+    @PutMapping("/finalizar/{id}")
+    public InformeMedico feedbackInforme(@PathVariable("id") String id, @RequestBody Map<String, String> payload){
+        InformeMedico informeEncontrado = informeService.buscarInformeId(id);
+        informeEncontrado.setFeedback(payload.get("textoFinal"));
+        informeEncontrado.setEstado("REVISADO");
+        informeService.editarInforme(id, informeEncontrado);
+        return informeEncontrado;
     }
 
     @DeleteMapping("/borrar/{idInforme}")

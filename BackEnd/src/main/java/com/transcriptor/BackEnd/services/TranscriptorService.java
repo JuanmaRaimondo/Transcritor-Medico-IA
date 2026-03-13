@@ -3,6 +3,7 @@ package com.transcriptor.BackEnd.services;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,7 +17,7 @@ import com.google.protobuf.ByteString;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
 import com.transcriptor.BackEnd.Entities.Paciente;
 import com.transcriptor.BackEnd.repositories.IPacienteRepository;
-import com.transcriptor.BackEnd.repositories.IUsuarioRepository;
+/*import com.transcriptor.BackEnd.repositories.IUsuarioRepository; */
 
 @Service
 public class TranscriptorService {
@@ -24,11 +25,14 @@ public class TranscriptorService {
     @Autowired
     private IPacienteRepository pacienterepo;
 
-    @Autowired
-    private IUsuarioRepository usuariorepo;
+    /*@Autowired
+    private IUsuarioRepository usuariorepo;*/
 
     @Autowired
     private InformeService informeService;
+
+    @Autowired
+    private ChatModel chatmodel;
 
             public String crearTranscripcion(String id_paciente, MultipartFile archivo){
                     Optional<Paciente> pacienteExiste = pacienterepo.findById(id_paciente);
@@ -37,7 +41,7 @@ public class TranscriptorService {
                             throw new RuntimeException("Paciente no encontrado");
                         }
 
-                        Paciente paciente = pacienteExiste.get();
+                    /*    Paciente paciente = pacienteExiste.get();*/ 
 
                     InformeMedico informeNuevo = new InformeMedico(
                         id_paciente,            // 1. idPaciente
@@ -49,12 +53,17 @@ public class TranscriptorService {
                         "PROCESANDO",           // 7. estado inicial
                         LocalDateTime.now()     // 8. fechaCreacion (marca la hora actual exacta)
                         );
+
+                        //Recibimos el audio y lo transcribimos a texto.
                       InformeMedico informeGuardado =  informeService.crearInforme(informeNuevo);
                         String textoCrudo = escucharAudioGoogle(archivo);
                         informeGuardado.setTextoCrudo(textoCrudo);
-                        informeGuardado.setEstado("TEXTOCRUDO");
+                        //recibido el audio transcripto pasa a ser corregido con IA.
+                        String textoInteligente = correccionAudioGoogle(textoCrudo);
+                        informeGuardado.setTextoCorregido(textoInteligente);
+                        informeGuardado.setEstado("PENDIENTE_REVISION");
                         informeService.editarInforme(informeGuardado.getId(), informeGuardado);
-                        return "Informe creado con estado PROCESADO ";
+                        return "Informe creado con estado PENDIENTE de REVISION por parte del usuario ";
 
             }
 
@@ -75,6 +84,22 @@ public class TranscriptorService {
                 } catch (Exception e) {
                     throw new RuntimeException("Error al comunicarse con Google Cloud: " + e.getMessage());
                 }
+            }
+
+            private String correccionAudioGoogle(String textoCrudo){
+                String contextoIA = """
+                                        Sos un asistente médico profesional experto en transcripción clínica.
+                                        Tu tarea es tomar el siguiente texto dictado (que puede estar desordenado o no tener puntuación)
+                                        y convertirlo en un informe médico estructurado, utilizando lenguaje técnico y formal.
+                                        Mantené la información exacta, NO inventes síntomas ni diagnósticos que no estén en el texto.
+                                        Estructurá el resultado con títulos como: 'Motivo de consulta', 'Síntomas', 'Diagnóstico' y 'Tratamiento' según corresponda.
+                                        
+                                        Texto dictado a transcribir:
+                                        """;
+                
+                String textoCorregido = contextoIA + textoCrudo;
+
+                return chatmodel.call(textoCorregido);
             }
 
 
