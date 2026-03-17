@@ -34,14 +34,33 @@ public class InformeController {
     }
 
     @PostMapping("/subir-audio")
-    public String subirAudio(@RequestParam("idpaciente") String idpaciente, @RequestParam("audio") MultipartFile archivo){
-        if(archivo.isEmpty() || !"audio/wav".equals(archivo.getContentType()) ){
-            return "Error: Por favor, suba un archivo de audio en formato WAV válido.";
-        }else{ 
-            transcriptorService.crearTranscripcion(idpaciente, archivo);
-        return "¡Se subio exitosamente el audio!";
-        }
+    public String subirAudio(@RequestParam("idpaciente") String idpaciente, @RequestParam("audio") MultipartFile archivo) {
         
+        if (archivo.isEmpty()) {
+            return "Error: El archivo está vacío.";
+        }
+
+        // 1. Extraemos los datos que manda Postman
+        String contentType = archivo.getContentType();
+        String nombreOriginal = archivo.getOriginalFilename();
+
+        // 2. Imprimimos por consola para que vos puedas ver qué mandó Postman (te va a servir para debuggear siempre)
+        System.out.println("---- DEBUG SUBIDA DE AUDIO ----");
+        System.out.println("ContentType que llegó: " + contentType);
+        System.out.println("Nombre del archivo: " + nombreOriginal);
+        System.out.println("-------------------------------");
+
+        // 3. Validación flexible: Aceptamos cualquier etiqueta que empiece con "audio" O que el archivo termine en ".wav"
+        boolean esAudio = contentType != null && contentType.startsWith("audio/");
+        boolean esExtensionWav = nombreOriginal != null && nombreOriginal.toLowerCase().endsWith(".wav");
+
+        if (!esAudio && !esExtensionWav) {
+            return "Error: Por favor, suba un archivo de audio en formato WAV válido.";
+        }
+
+        // Si pasó el detector de mentiras, lo mandamos al servicio
+        transcriptorService.crearTranscripcion(idpaciente, archivo);
+        return "¡Se subió exitosamente el audio y comenzó el procesamiento!";
     }
 
     @GetMapping("/traerlistaInformes/{idPaciente}")

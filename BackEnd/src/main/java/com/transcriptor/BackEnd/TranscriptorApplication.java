@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class TranscriptorApplication {
 
 	public static void main(String[] args) {
+
+		
 		SpringApplication.run(TranscriptorApplication.class, args);
 	}
 
