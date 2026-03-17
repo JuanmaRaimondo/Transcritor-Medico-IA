@@ -37,35 +37,36 @@ public class TranscriptorService {
     }
 
     public String crearTranscripcion(String id_paciente, MultipartFile archivo){
+        // 1. Verificamos que el paciente exista
         Optional<Paciente> pacienteExiste = pacienterepo.findById(id_paciente);
 
         if(pacienteExiste.isEmpty()){
             throw new RuntimeException("Paciente no encontrado");
         }
 
+        // 2. Hacemos el trabajo pesado con las APIs primero
+        // Extraemos el texto del audio
+        String textoCrudo = escucharAudioGoogle(archivo);
+        
+        // Lo mandamos a estructurar con Gemini 2.x
+        String textoInteligente = correccionAudioGoogle(textoCrudo);
+
+        // 3. Creamos el informe con TODOS los datos ya resueltos
         InformeMedico informeNuevo = new InformeMedico(
             id_paciente,            // 1. idPaciente
             null,                   // 2. idMedico (lo agregaremos más adelante)
             "General",              // 3. tipoEstudio
-            null,                   // 4. textoTranscritoCrudo (esperando a la IA)
-            null,                   // 5. textoCorregidoIa (esperando a la IA)
+            textoCrudo,             // 4. textoCrudo (¡ahora sí se va a guardar!)
+            textoInteligente,       // 5. textoCorregido (la magia de la IA)
             null,                   // 6. feedbackMedico
-            "PROCESANDO",           // 7. estado inicial
+            "PENDIENTE_REVISION",   // 7. estado inicial
             LocalDateTime.now()     // 8. fechaCreacion (marca la hora actual exacta)
         );
 
-        //Recibimos el audio y lo transcribimos a texto.
-        InformeMedico informeGuardado =  informeService.crearInforme(informeNuevo);
-        String textoCrudo = escucharAudioGoogle(archivo);
-        informeGuardado.setTextoCrudo(textoCrudo);
+        // 4. Guardamos en la base de datos una sola vez con el objeto completo
+        informeService.crearInforme(informeNuevo);
         
-        //recibido el audio transcripto pasa a ser corregido con IA.
-        String textoInteligente = correccionAudioGoogle(textoCrudo);
-        informeGuardado.setTextoCorregido(textoInteligente);
-        informeGuardado.setEstado("PENDIENTE_REVISION");
-        informeService.editarInforme(informeGuardado.getId(), informeGuardado);
-        
-        return "Informe creado con estado PENDIENTE de REVISION por parte del usuario ";
+        return "Informe creado con estado PENDIENTE de REVISION por parte del usuario";
     }
 
     private String escucharAudioGoogle(MultipartFile archivo){
