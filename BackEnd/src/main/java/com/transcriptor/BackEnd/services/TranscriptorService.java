@@ -36,7 +36,7 @@ public class TranscriptorService {
         this.chatmodel = chatmodel;
     }
 
-    public String crearTranscripcion(String id_paciente, MultipartFile archivo){
+    public InformeMedico crearTranscripcion(String id_paciente, MultipartFile archivo, String tipoEstudio, String emailMedico){
         // 1. Verificamos que el paciente exista
         Optional<Paciente> pacienteExiste = pacienterepo.findById(id_paciente);
 
@@ -54,8 +54,8 @@ public class TranscriptorService {
         // 3. Creamos el informe con TODOS los datos ya resueltos
         InformeMedico informeNuevo = new InformeMedico(
             id_paciente,            // 1. idPaciente
-            null,                   // 2. idMedico (lo agregaremos más adelante)
-            "General",              // 3. tipoEstudio
+            emailMedico,                   // 2. idMedico (lo agregaremos más adelante)
+            tipoEstudio,              // 3. tipoEstudio
             textoCrudo,             // 4. textoCrudo (¡ahora sí se va a guardar!)
             textoInteligente,       // 5. textoCorregido (la magia de la IA)
             null,                   // 6. feedbackMedico
@@ -66,7 +66,7 @@ public class TranscriptorService {
         // 4. Guardamos en la base de datos una sola vez con el objeto completo
         informeService.crearInforme(informeNuevo);
         
-        return "Informe creado con estado PENDIENTE de REVISION por parte del usuario";
+        return informeNuevo;
     }
 
     private String escucharAudioGoogle(MultipartFile archivo){
@@ -124,4 +124,60 @@ public class TranscriptorService {
             throw new RuntimeException("Falló la IA: " + e.getMessage());
         }
     }
+
+    private String feedbackGoogle(String textoActual, String feedbackMedico) {
+        String contextoIA = """
+                Sos un asistente médico profesional experto en transcripción clínica.
+                A continuación te voy a pasar un informe médico que ya fue estructurado, y un comentario/feedback del doctor con correcciones o agregados que quiere hacerle.
+                
+                Tu tarea es reescribir el informe médico aplicando EXACTAMENTE las correcciones que pide el doctor.
+                Mantené el formato estructurado profesional (Motivo de consulta, Síntomas, etc.) y no inventes información médica que no esté en el texto original o en el feedback.
+                
+                --- INFORME ACTUAL ---
+                %s
+                
+                --- FEEDBACK DEL DOCTOR ---
+                %s
+                """.formatted(textoActual, feedbackMedico);
+
+        try {
+            var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
+                    .withModel("gemini-2.5-flash-lite")
+                    .build();
+
+            var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
+
+            return chatmodel.call(prompt).getResult().getOutput().getContent();
+            
+        } catch (Exception e) {
+            System.err.println("========== ERROR EN REESCRITURA CON VERTEX AI ==========");
+            e.printStackTrace();
+            throw new RuntimeException("Falló la IA al reescribir: " + e.getMessage());
+        }
+    }
+    public InformeMedico reescribirInformeConFeedback(String idInforme, String feedback) {
+        
+        // 1. Buscá el informe en la base de datos por su ID usando informeService
+        // Pista: 
+        InformeMedico informeEncontrado = informeService.buscarInformeId(idInforme);
+        
+        // 2. Extraé el texto que la IA había generado originalmente.
+        // Pista: 
+        String textoActual = informeEncontrado.getTextoCorregido();
+
+        // 3. (Dejar comentado) Llamada a Vertex AI. 
+         String nuevoTexto = feedbackGoogle(textoActual, feedback);
+        
+        // 4. Actualizá el informe con el nuevo texto y agregá el feedback.
+         informeEncontrado.setTextoCorregido(nuevoTexto); // (Comentado por ahora)
+        informeEncontrado.setFeedback(feedback);
+
+        // 5. Guardá los cambios usando informeService.
+        // Pista: informeService.actualizarInforme(informeEncontrado);
+        informeService.crearInforme(informeEncontrado);
+        
+        // 6. Retorná el informe actualizado.
+        return informeEncontrado; // Cambiá este null por tu informe guardado
+    }
+
 }

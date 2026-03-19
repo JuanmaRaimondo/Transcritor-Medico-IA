@@ -44,4 +44,18 @@ public class InformeService {
                 InformeMedico informeEncontrado =  informerepo.findById(id).orElseThrow(() -> new RuntimeException("¡Error! Informe no encontrado"));
         return informeEncontrado;
     }
+
+    public InformeMedico aprobarYFinalizarInforme(String idInforme, String textoDefinitivo) {
+        
+        
+        InformeMedico informeEncontrado = buscarInformeId(idInforme);
+
+        informeEncontrado.setTextoCorregido(textoDefinitivo);
+        
+        informeEncontrado.setEstado("FINALIZADO");
+        
+         crearInforme(informeEncontrado);
+        
+        return informeEncontrado; 
+    }
 }
