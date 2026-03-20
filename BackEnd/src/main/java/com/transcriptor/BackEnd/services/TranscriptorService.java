@@ -12,10 +12,16 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.speech.v1.RecognitionAudio;
 import com.google.cloud.speech.v1.RecognitionConfig;
-import com.google.cloud.speech.v1.RecognizeResponse;
 import com.google.cloud.speech.v1.SpeechClient;
 import com.google.cloud.speech.v1.SpeechSettings;
-import com.google.protobuf.ByteString;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import com.google.api.gax.longrunning.OperationFuture;
+import com.google.cloud.speech.v1.LongRunningRecognizeMetadata;
+import com.google.cloud.speech.v1.LongRunningRecognizeResponse;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
 import com.transcriptor.BackEnd.Entities.Paciente;
 import com.transcriptor.BackEnd.repositories.IPacienteRepository;
@@ -74,26 +80,74 @@ public class TranscriptorService {
             InputStream credentialsStream = getClass().getResourceAsStream("/google-credentials.json");
             GoogleCredentials credenciales = GoogleCredentials.fromStream(credentialsStream);
             
+            // 1. Configuramos Google Cloud Storage para subir el audio temporalmente
+            Storage storage = StorageOptions.newBuilder().setCredentials(credenciales).build().getService();
+            String projectId = storage.getOptions().getProjectId();
+            if (projectId == null) projectId = "transcriptor-ia-app";
+            
+            // Creamos un nombre de bucket único por proyecto (nombres deben ser únicos globalmente)
+            String bucketName = "audios-tmp-" + projectId;
+            
+            // Si el bucket no existe, lo creamos
+            if (storage.get(bucketName) == null) {
+                storage.create(BucketInfo.newBuilder(bucketName).build());
+            }
+
+            // 2. Subimos el archivo a Storage
+            String nombreArchivo = archivo.getOriginalFilename();
+            String objectName = java.util.UUID.randomUUID().toString() + "-" + nombreArchivo;
+            BlobId blobId = BlobId.of(bucketName, objectName);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(archivo.getContentType()).build();
+            
+            System.out.println("Subiendo archivo a GCS: gs://" + bucketName + "/" + objectName);
+            storage.create(blobInfo, archivo.getBytes());
+            
+            // 3. Procedemos a transcribir con la URL de GCS
             SpeechSettings configuracionCliente = SpeechSettings.newBuilder()
                     .setCredentialsProvider(FixedCredentialsProvider.create(credenciales))
                     .build();
 
             try (SpeechClient speechClient = SpeechClient.create(configuracionCliente)) {
                 
-                ByteString audioBytes = ByteString.copyFrom(archivo.getBytes());
-                RecognitionAudio paqueteAudio = RecognitionAudio.newBuilder().setContent(audioBytes).build();
-                RecognitionConfig configuracion = RecognitionConfig.newBuilder().setLanguageCode("es-AR").build();
+                String gcsUri = "gs://" + bucketName + "/" + objectName;
+                RecognitionAudio paqueteAudio = RecognitionAudio.newBuilder().setUri(gcsUri).build();
                 
-                RecognizeResponse respuesta = speechClient.recognize(configuracion, paqueteAudio);
+                // ---- LA MAGIA DE QA EMPIEZA ACÁ ----
+                RecognitionConfig.Builder configBuilder = RecognitionConfig.newBuilder().setLanguageCode("es-AR");
                 
-                return respuesta.getResultsList()
-                                .get(0)
-                                .getAlternativesList()
-                                .get(0)
-                                .getTranscript();
+                if (nombreArchivo != null && nombreArchivo.toLowerCase().endsWith(".webm")) {
+                    configBuilder.setEncoding(RecognitionConfig.AudioEncoding.WEBM_OPUS);
+                    configBuilder.setSampleRateHertz(48000); 
+                }
+                
+                RecognitionConfig configuracion = configBuilder.build();
+                // ---- TERMINA LA MAGIA ----
+                
+                System.out.println("Iniciando transcripción asíncrona de larga duración...");
+                OperationFuture<LongRunningRecognizeResponse, LongRunningRecognizeMetadata> response =
+                        speechClient.longRunningRecognizeAsync(configuracion, paqueteAudio);
+                
+                // Esperamos a que termine el procesamiento en Google
+                while (!response.isDone()) {
+                    System.out.println("Esperando a que Google termine de transcribir (espere)...");
+                    Thread.sleep(3000);
+                }
+                
+                // 4. Borramos el archivo inmediatamente para que sea gratis (capa siempre gratuita)
+                System.out.println("Transcripción terminada. Borrando audio de GCS...");
+                storage.delete(blobId);
+
+                // 5. Unimos todos los fragmentos transcriptos
+                StringBuilder reporteCompleto = new StringBuilder();
+                for (com.google.cloud.speech.v1.SpeechRecognitionResult result : response.get().getResultsList()) {
+                    reporteCompleto.append(result.getAlternativesList().get(0).getTranscript()).append(" ");
+                }
+                
+                return reporteCompleto.toString().trim();
             }
 
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Error al comunicarse con Google Cloud: " + e.getMessage());
         }
     }
@@ -172,12 +226,11 @@ public class TranscriptorService {
          informeEncontrado.setTextoCorregido(nuevoTexto); // (Comentado por ahora)
         informeEncontrado.setFeedback(feedback);
 
-        // 5. Guardá los cambios usando informeService.
-        // Pista: informeService.actualizarInforme(informeEncontrado);
+        
         informeService.crearInforme(informeEncontrado);
         
-        // 6. Retorná el informe actualizado.
-        return informeEncontrado; // Cambiá este null por tu informe guardado
+        
+        return informeEncontrado; 
     }
 
 }

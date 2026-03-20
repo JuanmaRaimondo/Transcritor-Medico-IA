@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { toast } from 'react-hot-toast';
-import { Search, Plus, FileAudio, UploadCloud, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Search, Plus, FileAudio, UploadCloud, FileText, CheckCircle, Clock, Activity, Trash2, User, UserPlus } from 'lucide-react';
 import api from '../utils/api';
 
 const Dashboard = () => {
     const [patientId, setPatientId] = useState('');
     const [reports, setReports] = useState([]);
+    const [viewMode, setViewMode] = useState('reports');
+    const [patients, setPatients] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
     // Modal Upload State
@@ -17,7 +19,58 @@ const Dashboard = () => {
     const [audioFile, setAudioFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Modal Create Patient State
+    const [showPatientModal, setShowPatientModal] = useState(false);
+    const [newPatient, setNewPatient] = useState({
+        nombre: '',
+        apellido: '',
+        obraSocial: '',
+        fechaNacimiento: ''
+    });
+    const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+
     const navigate = useNavigate();
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('¿Estás seguro de que deseas borrar este informe? Esta acción no se puede deshacer.')) return;
+        
+        try {
+            await api.delete(`/api/informe/borrar/${id}`);
+            toast.success('Informe borrado exitosamente');
+            setReports(prev => prev.filter(report => report.id !== id));
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al borrar el informe');
+        }
+    };
+
+    const handleCreatePatient = async (e) => {
+        e.preventDefault();
+        
+        if (!newPatient.nombre || !newPatient.apellido || !newPatient.obraSocial || !newPatient.fechaNacimiento) {
+            toast.error('Todos los campos son obligatorios');
+            return;
+        }
+
+        setIsCreatingPatient(true);
+        try {
+            await api.post('/api/paciente/crear', newPatient);
+            toast.success('Paciente creado exitosamente');
+            setShowPatientModal(false);
+            setNewPatient({ nombre: '', apellido: '', obraSocial: '', fechaNacimiento: '' });
+            
+            // If we are currently viewing patients, refresh the list
+            if (viewMode === 'patients') {
+                fetchAllPatients();
+            }
+        } catch (error) {
+            console.error(error);
+            const msg = error.response?.data?.mensaje || 'Error al crear paciente';
+            toast.error(msg);
+        } finally {
+            setIsCreatingPatient(false);
+        }
+    };
 
     const fetchReports = async (e) => {
         if (e) e.preventDefault();
@@ -30,6 +83,7 @@ const Dashboard = () => {
         try {
             const response = await api.get(`/api/informe/traerlistaInformes/${patientId}`);
             setReports(response.data || []);
+            setViewMode('reports');
             if (response.data.length === 0) {
                 toast('No se encontraron informes para el paciente especificado.', { icon: 'ℹ️' });
             }
@@ -40,6 +94,43 @@ const Dashboard = () => {
             setIsLoading(false);
         }
     };
+
+    const fetchAllReports = async () => {
+        setIsLoading(true);
+        setPatientId(''); // Clear patient search field
+        try {
+            const response = await api.get('/api/informe/traerTodos');
+            // Sort reports by date (newest first)
+            const sortedReports = (response.data || []).sort((a, b) => {
+                return new Date(b.fechaCreacion) - new Date(a.fechaCreacion);
+            });
+            setReports(sortedReports);
+            setViewMode('reports');
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al cargar todos los informes');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchAllPatients = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.get('/api/paciente/listapacientes');
+            setPatients(response.data || []);
+            setViewMode('patients');
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al cargar la lista de pacientes');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAllReports();
+    }, []);
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -145,12 +236,15 @@ const Dashboard = () => {
                 <div className="container">
                     <div className="flex justify-between items-center mb-6" style={{ marginTop: '15px', padding: '0 2rem' }}>
                         <h1 style={{ fontSize: '1.5rem' }}>Informes de Pacientes</h1>
-                        <div className="flex gap-3" style={{ transform: 'translateY(-6px)' }}>
-                            <button className="btn btn-outline" onClick={() => toast('Por implementar: Listar Pacientes', { icon: '🚧' })}>
+                        <div className="flex" style={{ transform: 'translateY(-6px)', gap: '1.25rem' }}>
+                            <button className="btn btn-outline" onClick={fetchAllPatients}>
                                 Listar Pacientes
                             </button>
-                            <button className="btn btn-outline" onClick={() => toast('Por implementar: Listar Informes', { icon: '🚧' })}>
+                            <button className="btn btn-outline" onClick={fetchAllReports}>
                                 Listar Informes
+                            </button>
+                            <button className="btn btn-primary" onClick={() => setShowPatientModal(true)} style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }}>
+                                <UserPlus size={20} /> Nuevo Paciente
                             </button>
                             <button className="btn btn-primary" onClick={() => navigate('/new-report')}>
                                 <Plus size={20} /> Nuevo Dictado
@@ -178,48 +272,96 @@ const Dashboard = () => {
                     </div>
 
                     <div className="table-container">
-                        {reports.length > 0 ? (
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha de Creación</th>
-                                        <th>ID Paciente</th>
-                                        <th>Tipo de Estudio</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reports.map((report) => (
-                                        <tr key={report.id}>
-                                            <td>{formatDate(report.fechaCreacion)}</td>
-                                            <td>{report.idPaciente}</td>
-                                            <td>
-                                                <div className="flex items-center gap-2 font-medium">
-                                                    <FileText size={16} className="text-secondary" />
-                                                    {report.tipoEstudio || 'General'}
-                                                </div>
-                                            </td>
-                                            <td>{getStatusBadge(report.estado)}</td>
-                                            <td>
-                                                <button
-                                                    className="btn btn-outline"
-                                                    onClick={() => navigate(`/review/${report.id}`)}
-                                                    style={{ padding: '0.4rem 0.8rem' }}
-                                                >
-                                                    Ver Detalle
-                                                </button>
-                                            </td>
+                        {viewMode === 'reports' ? (
+                            reports.length > 0 ? (
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha de Creación</th>
+                                            <th>ID Paciente</th>
+                                            <th>Tipo de Estudio</th>
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {reports.map((report) => (
+                                            <tr key={report.id}>
+                                                <td>{formatDate(report.fechaCreacion)}</td>
+                                                <td>{report.idPaciente}</td>
+                                                <td>
+                                                    <div className="flex items-center gap-2 font-medium">
+                                                        <FileText size={16} className="text-secondary" />
+                                                        {report.tipoEstudio || 'General'}
+                                                    </div>
+                                                </td>
+                                                <td>{getStatusBadge(report.estado)}</td>
+                                                <td>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            className="btn btn-outline"
+                                                            onClick={() => navigate(`/review/${report.id}`)}
+                                                            style={{ padding: '0.4rem 0.8rem' }}
+                                                        >
+                                                            Ver Detalle
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-outline"
+                                                            onClick={() => handleDelete(report.id)}
+                                                            style={{ padding: '0.4rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                                                            title="Borrar informe"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="text-center text-secondary" style={{ padding: '3rem 1rem' }}>
+                                    <FileAudio size={48} className="mb-4" style={{ margin: '0 auto', opacity: 0.5 }} />
+                                    <h3 style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Sin Informes</h3>
+                                    <p>Busca un paciente o empieza grabando un nuevo dictado médico.</p>
+                                </div>
+                            )
                         ) : (
-                            <div className="text-center text-secondary" style={{ padding: '3rem 1rem' }}>
-                                <FileAudio size={48} className="mb-4" style={{ margin: '0 auto', opacity: 0.5 }} />
-                                <h3 style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Sin Informes</h3>
-                                <p>Busca un paciente o empieza grabando un nuevo dictado médico.</p>
-                            </div>
+                            patients.length > 0 ? (
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID / DNI</th>
+                                            <th>Nombre</th>
+                                            <th>Apellido</th>
+                                            <th>Obra Social</th>
+                                            <th>Fecha de Nacimiento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {patients.map((patient) => (
+                                            <tr key={patient.id}>
+                                                <td style={{ fontWeight: 600 }}>{patient.id}</td>
+                                                <td>{patient.nombre}</td>
+                                                <td>{patient.apellido}</td>
+                                                <td>
+                                                    <div className="flex items-center gap-2">
+                                                        <Activity size={16} className="text-primary" />
+                                                        {patient.obraSocial}
+                                                    </div>
+                                                </td>
+                                                <td>{patient.fechaNacimiento}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="text-center text-secondary" style={{ padding: '3rem 1rem' }}>
+                                    <User size={48} className="mb-4" style={{ margin: '0 auto', opacity: 0.5 }} />
+                                    <h3 style={{ marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Sin Pacientes</h3>
+                                    <p>No se encontraron pacientes registrados en la base de datos.</p>
+                                </div>
+                            )
                         )}
                     </div>
                 </div>
@@ -324,6 +466,96 @@ const Dashboard = () => {
                                 Generar Informe
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Patient Modal Overlay */}
+            {showPatientModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem'
+                }}>
+                    <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative' }}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <UserPlus /> Registrar Nuevo Paciente
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setShowPatientModal(false)}
+                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
+                                disabled={isCreatingPatient}
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreatePatient}>
+                            <div className="form-group">
+                                <label className="form-label">Nombre</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Nombre del paciente"
+                                    value={newPatient.nombre}
+                                    onChange={(e) => setNewPatient({ ...newPatient, nombre: e.target.value })}
+                                    disabled={isCreatingPatient}
+                                />
+                            </div>
+                            <div className="form-group mt-3">
+                                <label className="form-label">Apellido</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Apellido del paciente"
+                                    value={newPatient.apellido}
+                                    onChange={(e) => setNewPatient({ ...newPatient, apellido: e.target.value })}
+                                    disabled={isCreatingPatient}
+                                />
+                            </div>
+                            <div className="form-group mt-3">
+                                <label className="form-label">Obra Social</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Ej. OSDE, Swiss Medical..."
+                                    value={newPatient.obraSocial}
+                                    onChange={(e) => setNewPatient({ ...newPatient, obraSocial: e.target.value })}
+                                    disabled={isCreatingPatient}
+                                />
+                            </div>
+                            <div className="form-group mt-3 flex flex-col">
+                                <label className="form-label">Fecha de Nacimiento</label>
+                                <input
+                                    type="date"
+                                    className="form-control"
+                                    value={newPatient.fechaNacimiento}
+                                    onChange={(e) => setNewPatient({ ...newPatient, fechaNacimiento: e.target.value })}
+                                    disabled={isCreatingPatient}
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 mt-6">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={() => setShowPatientModal(false)}
+                                    disabled={isCreatingPatient}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={isCreatingPatient}
+                                >
+                                    {isCreatingPatient ? <div className="spinner" style={{ width: '1rem', height: '1rem' }}></div> : 'Crear Paciente'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

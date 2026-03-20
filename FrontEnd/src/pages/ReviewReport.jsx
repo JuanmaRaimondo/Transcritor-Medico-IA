@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { CheckCircle, AlertCircle, ArrowLeft, Send } from 'lucide-react';
+import { CheckCircle, AlertCircle, ArrowLeft, Send, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import html2pdf from 'html2pdf.js';
 import api from '../utils/api';
 
 const ReviewReport = () => {
@@ -23,7 +24,27 @@ const ReviewReport = () => {
             try {
                 const response = await api.get(`/api/informe/detalle/${id}`);
                 setReport(response.data);
-                setEditedText(response.data.textoCorregido || '');
+                
+                let textToEdit = response.data.textoCorregido || '';
+                try {
+                    const parsed = JSON.parse(textToEdit);
+                    if (parsed && typeof parsed === 'object') {
+                        textToEdit = Object.entries(parsed)
+                            .map(([key, value]) => {
+                                const formattedKey = key
+                                    .replace(/([A-Z])/g, ' $1')
+                                    .replace(/[_]/g, ' ')
+                                    .toUpperCase()
+                                    .trim();
+                                return `${formattedKey}:\n${value}`;
+                            })
+                            .join('\n\n');
+                    }
+                } catch (e) {
+                    // Si falla el parseo, se asume que ya venía como texto plano
+                }
+                
+                setEditedText(textToEdit);
             } catch (error) {
                 console.error(error);
                 toast.error('Error al cargar el informe.');
@@ -45,6 +66,23 @@ const ReviewReport = () => {
 
         fetchReport();
     }, [id]);
+
+    const downloadPDF = () => {
+        const element = document.createElement('div');
+        element.innerHTML = `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h1 style="color: #2563eb; text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">Transcriptor Médico IA</h1>
+                <div style="margin-top: 20px; font-size: 14px; color: #4b5563;">
+                    <p><strong>ID Paciente:</strong> ${report.idPaciente}</p>
+                    <p><strong>Tipo de Estudio:</strong> ${report.tipoEstudio}</p>
+                    <p><strong>Fecha:</strong> ${new Date(report.fechaCreacion).toLocaleString()}</p>
+                </div>
+                <div style="margin-top: 30px; line-height: 1.6; font-size: 15px; white-space: pre-wrap;">${editedText}</div>
+            </div>
+        `;
+
+        html2pdf().from(element).save();
+    };
 
     const handleApprove = async () => {
         if (!editedText.trim()) {
@@ -158,10 +196,19 @@ const ReviewReport = () => {
                     {/* Acción Inferior */}
                     <div className="card flex justify-end gap-4">
                         <button
+                            className="btn btn-outline"
+                            onClick={downloadPDF}
+                            disabled={report.estado === 'REVISADO' || isSaving}
+                            style={{ padding: '0.75rem 2rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            <Download size={20} />
+                            Descargar PDF
+                        </button>
+                        <button
                             className="btn btn-primary"
                             onClick={handleApprove}
                             disabled={report.estado === 'REVISADO' || isSaving}
-                            style={{ padding: '0.75rem 2rem', fontSize: '1.05rem' }}
+                            style={{ padding: '0.75rem 2rem', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                         >
                             {isSaving ? <div className="spinner"></div> : <><Send size={20} /> Aprobar y Finalizar Informe</>}
                         </button>

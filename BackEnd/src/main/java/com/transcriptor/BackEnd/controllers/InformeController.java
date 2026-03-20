@@ -1,7 +1,6 @@
 package com.transcriptor.BackEnd.controllers;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,8 +25,10 @@ import com.transcriptor.BackEnd.services.TranscriptorService;
 @RestController
 @RequestMapping("/api/informe")
 public class InformeController {
+    
     @Autowired
     private InformeService informeService;
+    
     @Autowired
     private TranscriptorService transcriptorService;
     
@@ -85,35 +86,35 @@ public class InformeController {
         return informeService.traerInformesPorPaciente(idPaciente);
     }
 
+    @GetMapping("/traerTodos")
+    public List<InformeMedico> traerTodosLosInformes() {
+        return informeService.traerTodosLosInformes();
+    }
+
     @PutMapping("/editar/{idInforme}")
     public InformeMedico editarInforme(@PathVariable String idInforme, @RequestBody InformeMedico informe){
        InformeMedico informeAEditar = informeService.editarInforme(idInforme, informe);
        return informeAEditar;
     }
 
-    @PutMapping("/finalizar/{id}")
-    public InformeMedico feedbackInforme(@PathVariable("id") String id, @RequestBody Map<String, String> payload){
-        InformeMedico informeEncontrado = informeService.buscarInformeId(id);
-        informeEncontrado.setFeedback(payload.get("textoFinal"));
-        informeEncontrado.setEstado("REVISADO");
-        informeService.editarInforme(id, informeEncontrado);
-        return informeEncontrado;
-    }
-
     @DeleteMapping("/borrar/{idInforme}")
     public String borrarInforme(@PathVariable String idInforme){
        String mensaje = informeService.borrarInforme(idInforme);
         return mensaje;
-        
     }
 
-    @PutMapping("/reescribir/{idInforme}")
-    public ResponseEntity<?> reescribirInforme(@PathVariable("idInforme") String idInforme, @RequestBody FeedbackRequestDTO feedback)
-             {
-        System.out.println("El id recibido es:" + idInforme + "El Feedback Recibido es: " + feedback);
-        
-
-        return ResponseEntity.ok("Endpoint de reescritura alcanzado");
+   @PutMapping("/reescribir/{idInforme}")
+    public ResponseEntity<?> reescribirInforme(@PathVariable("idInforme") String idInforme, @RequestBody FeedbackRequestDTO feedback) {
+        try {
+            // 1. Llamamos a tu motor de IA pasándole el ID y el texto del feedback
+            InformeMedico informeActualizado = transcriptorService.reescribirInformeConFeedback(idInforme, feedback.feedback());
+            
+            // 2. Devolvemos el objeto real en formato JSON
+            return ResponseEntity.ok(informeActualizado);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Error al reescribir con IA: " + e.getMessage());
+        }
     }
 
     @PutMapping("/finalizar/{idInforme}")
@@ -128,5 +129,15 @@ public class InformeController {
         
         // 3. Devolvemos el informe actualizado con un código 200 OK
         return ResponseEntity.ok(informeFinalizado);
+    }
+    @GetMapping("/detalle/{id}")
+    public ResponseEntity<InformeMedico> traerDetalleInforme(@PathVariable("id") String id) {
+        try {
+            // Buscamos el informe por su ID en la base de datos
+            InformeMedico informe = informeService.buscarInformeId(id);
+            return ResponseEntity.ok(informe);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

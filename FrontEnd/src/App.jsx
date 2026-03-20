@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ReviewReport from './pages/ReviewReport';
 import NewReport from './pages/NewReport';
+import FAQ from './pages/FAQ';
 
 function App() {
   return (
@@ -67,6 +68,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <NewReport />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/faq"
+            element={
+              <ProtectedRoute>
+                <FAQ />
               </ProtectedRoute>
             }
           />

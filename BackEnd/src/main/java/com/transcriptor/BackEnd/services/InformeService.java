@@ -19,8 +19,12 @@ public class InformeService {
     }
 
     public List<InformeMedico> traerInformesPorPaciente(String idPaciente){
-                return informerepo.findByIdPaciente(idPaciente);
-            }
+        return informerepo.findByIdPaciente(idPaciente);
+    }
+
+    public List<InformeMedico> traerTodosLosInformes() {
+        return informerepo.findAll();
+    }
 
     public InformeMedico editarInforme(String idInforme, InformeMedico informe){
         InformeMedico informeEncontrado =  informerepo.findById(idInforme).orElseThrow(() -> new RuntimeException("¡Error! Informe no encontrado"));
@@ -45,17 +49,12 @@ public class InformeService {
         return informeEncontrado;
     }
 
-    public InformeMedico aprobarYFinalizarInforme(String idInforme, String textoDefinitivo) {
-        
-        
-        InformeMedico informeEncontrado = buscarInformeId(idInforme);
+    public InformeMedico aprobarYFinalizarInforme(String id, String textoFinalManual) {
+        InformeMedico informeEncontrado = buscarInformeId(id);
 
-        informeEncontrado.setTextoCorregido(textoDefinitivo);
+        informeEncontrado.setTextoCorregido(textoFinalManual);
+        informeEncontrado.setEstado("REVISADO");
         
-        informeEncontrado.setEstado("FINALIZADO");
-        
-         crearInforme(informeEncontrado);
-        
-        return informeEncontrado; 
+        return informerepo.save(informeEncontrado); 
     }
 }

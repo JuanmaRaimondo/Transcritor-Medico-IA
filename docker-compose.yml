@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Servicio de Base de Datos
+  mongodb:
+    image: mongo:6.0
+    container_name: transcriptor_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo-data:/data/db # Persistencia de la base de datos local
+    networks:
+      - transcriptor-net
+
+  # Servicio Backend (Spring Boot)
+  backend:
+    build: 
+      context: ./BackEnd
+      dockerfile: Dockerfile
+    container_name: transcriptor_backend
+    ports:
+      - "8080:8080" # El Frontend apunta a localhost:8080 en api.js
+    environment:
+      # Sobrescribimos la variable de conexión a MongoDB para apuntar al contenedor anterior
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/informes_medicos_db
+    depends_on:
+      - mongodb
+    networks:
+      - transcriptor-net
+
+  # Servicio Frontend (React/Vite)
+  frontend:
+    build: 
+      context: ./FrontEnd
+      dockerfile: Dockerfile
+    container_name: transcriptor_frontend
+    ports:
+      - "80:80"   # Exponemos el Frontend en el puerto 80 del host
+    depends_on:
+      - backend
+    networks:
+      - transcriptor-net
+
+# Red interna para que los contenedores se comuniquen entre sí
+networks:
+  transcriptor-net:
+    driver: bridge
