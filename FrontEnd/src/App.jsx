@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
+import CambiarPassword from './pages/CambiarPassword';
 import Dashboard from './pages/Dashboard';
 import ReviewReport from './pages/ReviewReport';
 import NewReport from './pages/NewReport';
@@ -44,6 +45,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/cambiar-password" element={<CambiarPassword />} />
 
           <Route
             path="/"

@@ -95,7 +95,13 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div className="text-center mt-6">
+                <div className="text-center mt-4">
+                    <Link to="/cambiar-password" className="text-primary" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                        ¿Olvidaste tu contraseña?
+                    </Link>
+                </div>
+
+                <div className="text-center mt-4">
                     <p className="text-secondary mb-2" style={{ fontSize: '0.875rem' }}>¿No tienes cuenta?</p>
                     <Link to="/register" className="text-primary" style={{ fontWeight: 600 }}>
                         Regístrate aquí

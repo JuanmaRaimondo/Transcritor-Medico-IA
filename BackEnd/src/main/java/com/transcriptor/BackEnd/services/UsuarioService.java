@@ -55,6 +55,27 @@ public class UsuarioService implements UserDetailsService{
         return "El medico ha sido borrado";
     }
 
+    // Método para cambiar la contraseña
+    public boolean cambiarPassword(String email, String nuevaPassword) {
+        // Buscamos el médico por email usando el repositorio que ya tenés
+        Optional<Usuario> usuarioOpt = usuariorepo.findByEmail(email);
+
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
+            
+            // Encriptamos la nueva contraseña usando el encoder que ya tenés inyectado
+            String passwordEncriptada = passwordEncoder.encode(nuevaPassword);
+            
+            // Se la seteamos al usuario y guardamos
+            usuario.setPassword(passwordEncriptada);
+            usuariorepo.save(usuario);
+            
+            return true; // Se cambió con éxito
+        }
+        
+        return false; // No se encontró el email
+    }
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
        Optional<Usuario> usuarioEncontrado = usuariorepo.findByEmail(username);
