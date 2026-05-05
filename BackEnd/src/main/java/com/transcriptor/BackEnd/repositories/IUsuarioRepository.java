@@ -10,4 +10,5 @@ import com.transcriptor.BackEnd.Entities.Usuario;
 @Repository
 public interface IUsuarioRepository extends MongoRepository<Usuario, String>{
     Optional<Usuario> findByEmail(String email);
+    boolean existsByEmail(String email);
 }

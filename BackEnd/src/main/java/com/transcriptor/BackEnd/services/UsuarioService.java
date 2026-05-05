@@ -23,6 +23,9 @@ public class UsuarioService implements UserDetailsService{
     private PasswordEncoder passwordEncoder;
 
     public Usuario usuarioNuevo(Usuario usuario){
+        if (usuariorepo.existsByEmail(usuario.getEmail())) {
+        throw new IllegalArgumentException("El correo ya está registrado en el sistema");
+    }
             String contraseñaEncriptada = passwordEncoder.encode(usuario.getPassword());
             usuario.setPassword(contraseñaEncriptada);
         return usuariorepo.save(usuario);

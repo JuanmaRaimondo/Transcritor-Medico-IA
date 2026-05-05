@@ -12,12 +12,16 @@ const Register = () => {
         password: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [errorMensaje, setErrorMensaje] = useState(null);
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
         e.preventDefault();
         const { nombre, email, password } = formData;
+
+        // Limpiamos errores anteriores apenas el usuario vuelve a intentar
+        setErrorMensaje(null); 
 
         if (!nombre || !email || !password) {
             toast.error('Todos los campos son obligatorios');
@@ -29,6 +33,7 @@ const Register = () => {
             const response = await api.post('/api/auth/register', formData);
             const { token, usuario } = response.data;
 
+            // ESTO ES TU CÓDIGO ORIGINAL INTACTO
             if (token) {
                 login(token, usuario || { email, nombre });
                 toast.success('Cuenta creada exitosamente');
@@ -39,8 +44,15 @@ const Register = () => {
             }
         } catch (error) {
             console.error(error);
-            const msg = error.response?.data?.mensaje || 'Error al crear la cuenta';
-            toast.error(msg);
+            
+            // LA CORRECCIÓN: Si el backend manda un texto, usamos ese. Si no, usamos el fallback.
+            const msg = typeof error.response?.data === 'string' 
+                ? error.response.data 
+                : error.response?.data?.mensaje || 'Error al crear la cuenta';
+            
+            toast.error(msg); // Mantenemos tu notificación flotante
+            setErrorMensaje(msg); // Guardamos el error para mostrarlo fijo en el HTML para Playwright
+            
         } finally {
             setIsLoading(false);
         }
@@ -100,6 +112,12 @@ const Register = () => {
                             disabled={isLoading}
                         />
                     </div>
+
+                    {errorMensaje && (
+                        <div style={{ color: '#dc3545', backgroundColor: '#f8d7da', padding: '10px', borderRadius: '5px', marginBottom: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
+                            {errorMensaje}
+                        </div>
+                    )}
 
                     <button
                         type="submit"
