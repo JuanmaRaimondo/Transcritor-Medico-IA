@@ -1,17 +1,12 @@
-import React, { createContext, useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useState } from 'react';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('token') || null);
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
-    const [loading, setLoading] = useState(true); // Loading state for initializing auth
-
-    useEffect(() => {
-        // If we have a token but no user info, maybe we fetch the profile here in a real app
-        // Currently, we'll assume user info is saved on login
-        setLoading(false);
-    }, []);
+    const loading = false; // Auth initialization is synchronous
 
     const login = (jwtToken, userInfo) => {
         localStorage.setItem('token', jwtToken);

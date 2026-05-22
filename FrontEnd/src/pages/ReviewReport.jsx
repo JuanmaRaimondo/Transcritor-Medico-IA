@@ -40,7 +40,7 @@ const ReviewReport = () => {
                             })
                             .join('\n\n');
                     }
-                } catch (e) {
+                } catch {
                     // Si falla el parseo, se asume que ya venía como texto plano
                 }
                 
