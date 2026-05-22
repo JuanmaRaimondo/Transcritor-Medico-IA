@@ -11,7 +11,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
+    // Evitamos enviar el token para rutas de autenticación pública (login/register)
+    if (token && !config.url.includes('/api/auth/')) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
@@ -27,9 +28,10 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear token and redirect to login if unauthorized
+    // Si el servidor retorna 401 (No autorizado) o 403 (Prohibido), limpiamos localStorage y redirigimos
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

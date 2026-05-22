@@ -43,27 +43,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 3. Extraemos el token (le sacamos los primeros 7 caracteres correspondientes a "Bearer ")
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extraerUsername(jwt);
+        try {
+            // 3. Extraemos el token (le sacamos los primeros 7 caracteres correspondiente a "Bearer ")
+            jwt = authHeader.substring(7);
+            userEmail = jwtService.extraerUsername(jwt);
 
-        // 4. Si encontramos un email en el token y el usuario todavía no está autenticado en este hilo...
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            
-            // Buscamos al usuario en la base de datos
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+            // 4. Si encontramos un email en el token y el usuario todavía no está autenticado en este hilo...
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                
+                // Buscamos al usuario en la base de datos
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-            // 5. Si el token es válido, le avisamos a Spring que este usuario está oficialmente autenticado
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                // Acá ocurre la magia: guardamos al usuario en el contexto de seguridad
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                // 5. Si el token es válido, le avisamos a Spring que este usuario está oficialmente autenticado
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Acá ocurre la magia: guardamos al usuario en el contexto de seguridad
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            // Si el token es inválido, expirado o malformado, simplemente dejamos pasar la petición.
+            // Spring Security se encargará de rechazarla si se intenta acceder a una ruta protegida.
         }
         
         // 6. Seguimos con el resto de la cadena
