@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://medictranscriptor.com',
+  // CAMBIO 1: Forzamos la ruta relativa. 
+  // Esto soluciona para siempre el Mixed Content de la IP.
+  baseURL: '/api', 
   headers: {
     'Content-Type': 'application/json'
   }
@@ -11,10 +13,15 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    // Evitamos enviar el token para rutas de autenticación pública (login/register)
-    if (token && !config.url.includes('/api/auth/')) {
+    
+    // CAMBIO 2: Solo evitamos enviar el token en login y register.
+    // Si la ruta NO es login y NO es register, entonces SÍ manda el token.
+    const isAuthRoute = config.url.includes('/login') || config.url.includes('/register');
+    
+    if (token && !isAuthRoute) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
