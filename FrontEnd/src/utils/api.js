@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://195.26.254.97:8080',
+  baseURL: import.meta.env.VITE_API_URL || 'https://medictranscriptor.com',
   headers: {
     'Content-Type': 'application/json'
   }
