@@ -73,5 +73,30 @@ public class AuthController {
         return ResponseEntity.ok("Usuario registrado exitosamente");
     }
 
-    
+    @PostMapping("/cambiar-password")
+    public ResponseEntity<?> cambiarPassword(@RequestBody java.util.Map<String, String> request) {
+        
+        String email = request.get("email");
+        String nuevaPassword = request.get("password"); // Verificá que en React el campo se llame "password"
+
+        if (email == null || nuevaPassword == null) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Email y contraseña son obligatorios\"}");
+        }
+
+        try {
+            // 1. Buscamos al usuario por su email
+            Usuario usuario = (Usuario) usuarioService.loadUserByUsername(email);
+            
+            // 2. Necesitamos actualizar la contraseña.
+            // OJO: Esta contraseña NUEVA tiene que encriptarse antes de guardarse en MongoDB.
+            usuarioService.cambiarPassword(usuario, nuevaPassword);
+            
+            return ResponseEntity.ok("{\"mensaje\": \"Contraseña actualizada exitosamente\"}");
+            
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body("{\"error\": \"Usuario no encontrado\"}");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("{\"error\": \"Error interno del servidor\"}");
+        }
+    }
 }

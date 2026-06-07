@@ -23,8 +23,8 @@ const CambiarPassword = () => {
         setIsLoading(true);
         try {
             const response = await api.post('/api/auth/cambiar-password', {
-                email,
-                nuevaPassword
+                email: email,
+                password: nuevaPassword
             });
             
             // Assume 200 OK since we're in the try block
