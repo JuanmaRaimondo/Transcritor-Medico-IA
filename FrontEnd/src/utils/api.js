@@ -3,7 +3,7 @@ import axios from 'axios';
 const api = axios.create({
   // CAMBIO 1: Forzamos la ruta relativa. 
   // Esto soluciona para siempre el Mixed Content de la IP.
-  baseURL: '/api', 
+  baseURL: '', 
   headers: {
     'Content-Type': 'application/json'
   }
