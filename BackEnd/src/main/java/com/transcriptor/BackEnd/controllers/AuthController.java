@@ -84,17 +84,16 @@ public class AuthController {
         }
 
         try {
-            // 1. Buscamos al usuario por su email
-            Usuario usuario = (Usuario) usuarioService.loadUserByUsername(email);
+            // Llamamos a tu servicio pasándole directamente los dos Strings (email y password)
+            // Tu servicio devolverá true si se cambió con éxito, o false si el email no existe
+            boolean exito = usuarioService.cambiarPassword(email, nuevaPassword);
             
-            // 2. Necesitamos actualizar la contraseña.
-            // OJO: Esta contraseña NUEVA tiene que encriptarse antes de guardarse en MongoDB.
-            usuarioService.cambiarPassword(usuario, nuevaPassword);
+            if (exito) {
+                return ResponseEntity.ok("{\"mensaje\": \"Contraseña actualizada exitosamente\"}");
+            } else {
+                return ResponseEntity.status(404).body("{\"error\": \"Usuario no encontrado\"}");
+            }
             
-            return ResponseEntity.ok("{\"mensaje\": \"Contraseña actualizada exitosamente\"}");
-            
-        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-            return ResponseEntity.status(404).body("{\"error\": \"Usuario no encontrado\"}");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("{\"error\": \"Error interno del servidor\"}");
         }
