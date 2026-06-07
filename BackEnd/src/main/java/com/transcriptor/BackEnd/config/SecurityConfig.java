@@ -24,7 +24,7 @@ public class SecurityConfig {
                 .csrf(c -> c.disable())
                 .authorizeHttpRequests(auth -> auth
                         
-                        .requestMatchers("/api/auth/**").permitAll() 
+                        .requestMatchers("/api/auth/**", "/error").permitAll() 
                 // A todas las demás rutas (como subir audio), sí o sí con Token
                 .anyRequest().authenticated()
                 )
