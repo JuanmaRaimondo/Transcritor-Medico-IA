@@ -30,7 +30,7 @@ const CambiarPassword = () => {
             // Assume 200 OK since we're in the try block
             setMensaje({ 
                 tipo: 'exito', 
-                texto: response.data || 'La contraseña se actualizó correctamente. Redirigiendo...'
+                texto: response.data.mensaje || 'La contraseña se actualizó correctamente. Redirigiendo...'
             });
             toast.success('Contraseña actualizada correctamente');
             
@@ -41,7 +41,7 @@ const CambiarPassword = () => {
             
         } catch (error) {
             console.error(error);
-            const msgError = error.response?.data || error.response?.data?.mensaje || 'Error: verifique si el correo existe o si el servidor está caído.';
+            const msgError = error.response?.data?.error || error.response?.data?.mensaje || 'Error: verifique si el correo existe o si el servidor está caído.';
             setMensaje({ 
                 tipo: 'error', 
                 texto: typeof msgError === 'string' ? msgError : 'Error al cambiar la contraseña'
