@@ -77,8 +77,16 @@ public class TranscriptorService {
 
     private String escucharAudioGoogle(MultipartFile archivo){
         try {
+           GoogleCredentials credenciales;
             InputStream credentialsStream = getClass().getResourceAsStream("/google-credentials.json");
-            GoogleCredentials credenciales = GoogleCredentials.fromStream(credentialsStream);
+            
+            if (credentialsStream != null) {
+                // Modo Desarrollo: Usa el archivo local de tu computadora
+                credenciales = GoogleCredentials.fromStream(credentialsStream);
+            } else {
+                // Modo Producción (VPS): Usa la variable de entorno de Docker
+                credenciales = GoogleCredentials.getApplicationDefault();
+            }
             
             // 1. Configuramos Google Cloud Storage para subir el audio temporalmente
             Storage storage = StorageOptions.newBuilder().setCredentials(credenciales).build().getService();
