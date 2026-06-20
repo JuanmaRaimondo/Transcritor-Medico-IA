@@ -127,7 +127,6 @@ function NewReport() {
       const response = await api.post('/api/informe/subir-audio', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      // Guardamos el objeto exacto que devuelve Spring Boot
       setGeneratedReport(response.data);
       toast.success('IA: Transcripción y análisis completados');
     } catch {
@@ -180,7 +179,7 @@ function NewReport() {
     try {
       const id = generatedReport.id || 'INF-999';
       await api.put(`/api/informe/finalizar/${id}`, {
-        textoFinal: generatedReport.textoCorregido // Mandamos solo el texto limpio final
+        textoFinal: generatedReport.textoCorregido
       });
       
       toast.success('Informe guardado y aprobado exitosamente');
@@ -346,8 +345,16 @@ function NewReport() {
                     <PlayCircle size={48} style={{ color: 'var(--success)' }} />
                     <div>
                       <h4 style={{ color: 'var(--success)', fontSize: '1.2rem', fontWeight: 'bold' }}>¡Audio capturado con éxito!</h4>
-                      <p className="text-secondary mt-1">Listo para ser procesado por la Inteligencia Artificial.</p>
+                      <p className="text-secondary mt-1">Escuchalo para confirmar, o procesalo con IA.</p>
                     </div>
+                    
+                    {/* REPRODUCTOR AGREGADO */}
+                    <audio 
+                      src={URL.createObjectURL(audioFile)} 
+                      controls 
+                      style={{ marginTop: '0.5rem', width: '100%', maxWidth: '350px' }} 
+                    />
+                    
                     <button onClick={discardAudio} className="btn btn-outline mt-2" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', borderRadius: '50px' }}>
                       <Trash2 size={18} style={{ marginRight: '6px' }} /> Descartar y volver a grabar
                     </button>
