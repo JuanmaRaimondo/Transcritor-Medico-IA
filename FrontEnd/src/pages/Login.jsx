@@ -1,49 +1,41 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { LogIn, Activity } from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import api from '../utils/api';
 
 const Login = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        if (!email || !password) {
-            toast.error('Todos los campos son obligatorios');
-            return;
-        }
-
+    const handleGoogleSuccess = async (credentialResponse) => {
         setIsLoading(true);
-        try {
-            const response = await api.post('/api/auth/login', { email, password });
+        const googleToken = credentialResponse.credential;
 
-            // 1. Extraemos los datos EXACTAMENTE como los manda tu AuthResponseDTO en Spring Boot
-            const { token, nombre, email: userEmail, especialidad } = response.data;
+        try {
+            // Mandamos el token de Google a tu backend en Java
+            const response = await api.post('/api/auth/google', { token: googleToken });
             
+            // Spring Boot nos va a responder con los datos y tu token propio de sesión
+            const { token, nombre, email, especialidad } = response.data;
+
             if (token) {
-                // 2. Armamos el objeto usuario acá mismo y lo guardamos
-                const userInfo = { 
-                    nombre: nombre, 
-                    email: userEmail, 
-                    especialidad: especialidad 
-                };
+                const userInfo = { nombre, email, especialidad };
                 
+                // Iniciamos sesión en el estado global de React
                 login(token, userInfo);
                 
-                toast.success('Sesión iniciada correctamente');
-                navigate('/');
+                toast.success('¡Ingreso exitoso!');
+                navigate('/'); // Al dashboard o pantalla principal
             } else {
-                toast.error('Token no recibido');
+                toast.error('Error al procesar la sesión en el servidor');
             }
         } catch (error) {
             console.error(error);
-            const msg = error.response?.data?.mensaje || 'Credenciales inválidas';
+            const msg = error.response?.data?.mensaje || 'Error al autenticar con Google';
             toast.error(msg);
         } finally {
             setIsLoading(false);
@@ -52,60 +44,46 @@ const Login = () => {
 
     return (
         <div className="auth-wrapper">
-            <div className="auth-card">
-                <div className="auth-header">
-                    <div className="auth-brand">
-                        <Activity className="text-primary" size={32} />
+            <div className="auth-card" style={{ padding: '3.5rem 2rem', textAlign: 'center' }}>
+                <div className="auth-header" style={{ marginBottom: '3rem' }}>
+                    <div className="auth-brand" style={{ justifyContent: 'center', fontSize: '1.8rem', gap: '10px' }}>
+                        <Activity className="text-primary" size={36} />
                         Transcriptor IA
                     </div>
-                    <p className="text-secondary mt-2">Acceso seguro para profesionales</p>
+                    <p className="text-secondary mt-3" style={{ fontSize: '1rem' }}>
+                        Acceso exclusivo para profesionales de la salud
+                    </p>
                 </div>
 
-                <form onSubmit={handleLogin}>
-                    <div className="form-group">
-                        <label className="form-label">Email médico</label>
-                        <input
-                            type="email"
-                            className="form-control"
-                            placeholder="dr.ejemplo@hospital.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            disabled={isLoading}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Contraseña</label>
-                        <input
-                            type="password"
-                            className="form-control"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            disabled={isLoading}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="btn btn-primary w-full mt-4"
-                        disabled={isLoading}
-                        style={{ fontSize: '1rem', padding: '0.75rem' }}
-                    >
-                        {isLoading ? <div className="spinner"></div> : <><LogIn size={20} /> Iniciar Sesión</>}
-                    </button>
-                </form>
-
-                <div className="text-center mt-4">
-                    <Link to="/cambiar-password" className="text-primary" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                        ¿Olvidaste tu contraseña?
-                    </Link>
-                </div>
-
-                <div className="text-center mt-4">
-                    <p className="text-secondary mb-2" style={{ fontSize: '0.875rem' }}>¿No tienes cuenta?</p>
-                    <Link to="/register" className="text-primary" style={{ fontWeight: 600 }}>
-                        Regístrate aquí
-                    </Link>
+                <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    gap: '1.5rem',
+                    minHeight: '100px'
+                }}>
+                    {isLoading ? (
+                        <div className="spinner" style={{ width: '40px', height: '40px' }}></div>
+                    ) : (
+                        <>
+                            {/* BOTÓN ÚNICO DE ACCESO */}
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => {
+                                    toast.error('El inicio de sesión con Google falló');
+                                }}
+                                disabled={isLoading}
+                                size="large"
+                                theme="filled_blue"
+                                text="signin_with"
+                                shape="pill"
+                            />
+                            <p style={{ color: '#9ca3af', fontSize: '0.8rem', maxWidth: '280px', margin: '0 auto' }}>
+                                Al ingresar, el sistema reconocerá tu cuenta institucional o personal de forma segura.
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
