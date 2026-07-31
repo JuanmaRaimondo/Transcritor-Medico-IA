@@ -55,7 +55,7 @@ public class TranscriptorService {
         String textoCrudo = escucharAudioGoogle(archivo);
         
         // Lo mandamos a estructurar con Gemini 2.x
-        String textoInteligente = correccionAudioGoogle(textoCrudo);
+        String textoInteligente = correccionAudioGoogle(textoCrudo, tipoEstudio);
 
         // 3. Creamos el informe con TODOS los datos ya resueltos
         InformeMedico informeNuevo = new InformeMedico(
@@ -160,32 +160,58 @@ public class TranscriptorService {
         }
     }
 
-    private String correccionAudioGoogle(String textoCrudo) {
-        String contextoIA = """
-                Sos un asistente médico profesional experto en transcripción clínica.
-                Tu tarea es tomar el siguiente texto dictado (que puede estar desordenado o no tener puntuación)
-                y convertirlo en un informe médico estructurado, utilizando lenguaje técnico y formal.
-                Mantené la información exacta, NO inventes síntomas ni diagnósticos que no estén en el texto.
-                Estructurá el resultado con títulos como: 'Motivo de consulta', 'Síntomas', 'Diagnóstico' y 'Tratamiento' según corresponda.
-                
-                Texto dictado a transcribir:
-                """ + textoCrudo;
+    private String correccionAudioGoogle(String textoCrudo, String tipoEstudio) {
+    String contextoIA = """
+            Sos un médico especialista en diagnóstico por imágenes con amplia experiencia
+            en la redacción de informes radiológicos en español rioplatense.
 
-        try {
-            var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
-                    .withModel("gemini-2.5-flash-lite")
-                    .build();
+            Tu tarea es tomar el texto dictado por el médico (que puede venir desordenado,
+            sin puntuación, o con muletillas) y convertirlo en un informe de diagnóstico
+            por imágenes correctamente estructurado, correspondiente al siguiente estudio:
 
-            var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
+            Tipo de estudio: %s
 
-            // Llamada directa y limpia a Vertex AI con el modelo correcto
-            return chatmodel.call(prompt).getResult().getOutput().getContent();} catch (Exception e) {
-            System.err.println("========== ERROR CRÍTICO DE VERTEX AI ==========");
-            e.printStackTrace();
-            System.err.println("================================================");
-            throw new RuntimeException("Falló la IA: " + e.getMessage());
-        }
+            Reglas para redactar el informe:
+            1. NO inventes hallazgos, medidas ni datos que no estén explícita o
+               implícitamente en el texto dictado. Si el médico no mencionó algo,
+               no lo completes por tu cuenta.
+            2. Usá terminología médica formal y precisa, propia de un informe de
+               diagnóstico por imágenes (no de una consulta clínica general).
+            3. Organizá los HALLAZGOS agrupándolos por estructura u órgano anatómico
+               relevante para este tipo de estudio (por ejemplo, para una tomografía
+               de cráneo: parénquima encefálico, sistema ventricular, estructuras óseas;
+               para una ecografía abdominal: hígado, vesícula, riñones, páncreas; adaptá
+               las secciones al estudio indicado arriba, no uses siempre las mismas).
+            4. Si el texto menciona la técnica utilizada (espesor de corte, uso de
+               contraste, planos de reconstrucción), incluila en una sección de
+               TÉCNICA al inicio. Si no se menciona, omitila (no la inventes).
+            5. Cerrá siempre con una sección de CONCLUSIÓN (o IMPRESIÓN DIAGNÓSTICA)
+               que resuma en pocas líneas el hallazgo más relevante, en el mismo
+               tono que usaría un médico especialista al firmar el informe.
+            6. Formato de salida: texto plano, con los títulos de sección en mayúsculas
+               seguidos de dos puntos (ej. "HALLAZGOS:"), sin usar markdown (nada de
+               asteriscos ni almohadillas), porque este texto se va a insertar
+               directamente en un documento Word/PDF.
+
+            Texto dictado a transcribir:
+            %s
+            """.formatted(tipoEstudio, textoCrudo);
+
+    try {
+        var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
+                .withModel("gemini-2.5-flash-lite")
+                .build();
+
+        var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
+
+        return chatmodel.call(prompt).getResult().getOutput().getContent();
+    } catch (Exception e) {
+        System.err.println("========== ERROR CRÍTICO DE VERTEX AI ==========");
+        e.printStackTrace();
+        System.err.println("================================================");
+        throw new RuntimeException("Falló la IA: " + e.getMessage());
     }
+}
 
     private String feedbackGoogle(String textoActual, String feedbackMedico) {
         String contextoIA = """
