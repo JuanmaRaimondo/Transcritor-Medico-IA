@@ -39,12 +39,11 @@ public class AuthController {
         String tokenGenerado = jwtService.generarToken(usuario);
         
         // 4. Devolvemos el paquete completo: Token + Datos del usuario
-        // Recordá que guardaste la especialidad en el campo apellido durante el registro
         return ResponseEntity.ok(new AuthResponseDTO(
             tokenGenerado, 
             usuario.getNombre(), 
             usuario.getEmail(), 
-            usuario.getApellido() // Acá está guardada la especialidad
+            usuario.getApellido() 
         ));
     }
 
@@ -58,10 +57,7 @@ public class AuthController {
         nuevoUsuario.setNombre(request.nombre());
         nuevoUsuario.setEmail(request.email());
         nuevoUsuario.setPassword(request.password());
-        
-        // Como tu modelo no tiene "especialidad", lo guardamos temporalmente en "apellido" 
-        // (después podés agregar el atributo especialidad a tu clase Usuario si querés)
-        nuevoUsuario.setApellido(request.especialidad()); 
+        nuevoUsuario.setApellido(request.apellido()); 
         
         // 3. Le asignamos un rol por defecto. Spring Security suele requerir el prefijo "ROLE_"
         nuevoUsuario.setRol("ROLE_MEDICO"); 
@@ -135,8 +131,7 @@ public class AuthController {
                     usuario = new Usuario();
                     usuario.setEmail(email);
                     usuario.setNombre(nombre);
-                    // Mantenemos la lógica de guardar la especialidad por defecto en apellido
-                    usuario.setApellido(apellido != null ? apellido : "Radiología"); 
+                    usuario.setApellido(apellido != null ? apellido : ""); 
                     usuario.setRol("ROLE_MEDICO");
                     // Le asignamos una contraseña aleatoria encriptada segura (porque nunca la va a usar de forma manual)
                     usuario.setPassword(org.springframework.security.crypto.bcrypt.BCrypt.hashpw(java.util.UUID.randomUUID().toString(), org.springframework.security.crypto.bcrypt.BCrypt.gensalt()));
@@ -153,7 +148,7 @@ public class AuthController {
                     tokenGenerado,
                     usuario.getNombre(),
                     usuario.getEmail(),
-                    usuario.getApellido() // Recordá que acá mapeas la especialidad
+                    usuario.getApellido() 
                 ));
 
             } else {

@@ -22,6 +22,7 @@ import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.speech.v1.LongRunningRecognizeMetadata;
 import com.google.cloud.speech.v1.LongRunningRecognizeResponse;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
+import com.transcriptor.BackEnd.Entities.TipoEstudio;
 
 @Service
 public class TranscriptorService {
@@ -41,6 +42,8 @@ public class TranscriptorService {
 
     public InformeMedico crearTranscripcion(String nombrePaciente, String apellidoPaciente, MultipartFile archivo, String tipoEstudio, String emailMedico){
         
+        TipoEstudio.fromLabel(tipoEstudio);
+
         String textoCrudo = escucharAudioGoogle(archivo);
         String textoInteligente = correccionAudioGoogle(textoCrudo, tipoEstudio);
 

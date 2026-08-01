@@ -2,7 +2,7 @@ package com.transcriptor.BackEnd.DTOs;
 
 public record RegisterRequestDTO(
     String nombre, 
-    String especialidad, 
+    String apellido, 
     String email, 
     String password
 ) {}
