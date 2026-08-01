@@ -3,6 +3,9 @@ package com.transcriptor.BackEnd.services;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.transcriptor.BackEnd.Entities.InformeMedico;
@@ -14,16 +17,34 @@ public class InformeService {
     @Autowired
     private IInformeMedicoRepository informerepo;
 
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
     public InformeMedico crearInforme(InformeMedico informe){
         return informerepo.save(informe);
     }
 
-    public List<InformeMedico> traerInformesPorPaciente(String idPaciente){
-        return informerepo.findByIdPaciente(idPaciente);
+
+    public List<InformeMedico> traerInformesPorMedico(String idMedico){
+        return informerepo.findByIdMedico(idMedico);
     }
 
-    public List<InformeMedico> traerTodosLosInformes() {
-        return informerepo.findAll();
+    // Reemplaza a traerInformesPorPaciente: filtra por médico logueado + nombre/apellido/tipoEstudio opcionales
+    public List<InformeMedico> buscarInformes(String idMedico, String nombrePaciente, String apellidoPaciente, String tipoEstudio){
+        Query query = new Query();
+        query.addCriteria(Criteria.where("idMedico").is(idMedico));
+
+        if (nombrePaciente != null && !nombrePaciente.isBlank()) {
+            query.addCriteria(Criteria.where("nombrePaciente").regex(nombrePaciente, "i"));
+        }
+        if (apellidoPaciente != null && !apellidoPaciente.isBlank()) {
+            query.addCriteria(Criteria.where("apellidoPaciente").regex(apellidoPaciente, "i"));
+        }
+        if (tipoEstudio != null && !tipoEstudio.isBlank()) {
+            query.addCriteria(Criteria.where("tipoEstudio").is(tipoEstudio));
+        }
+
+        return mongoTemplate.find(query, InformeMedico.class);
     }
 
     public InformeMedico editarInforme(String idInforme, InformeMedico informe){
@@ -45,7 +66,7 @@ public class InformeService {
     }
 
     public InformeMedico buscarInformeId(String id){
-                InformeMedico informeEncontrado =  informerepo.findById(id).orElseThrow(() -> new RuntimeException("¡Error! Informe no encontrado"));
+        InformeMedico informeEncontrado =  informerepo.findById(id).orElseThrow(() -> new RuntimeException("¡Error! Informe no encontrado"));
         return informeEncontrado;
     }
 

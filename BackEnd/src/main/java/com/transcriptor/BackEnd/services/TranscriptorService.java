@@ -2,7 +2,6 @@ package com.transcriptor.BackEnd.services;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,17 +22,15 @@ import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.speech.v1.LongRunningRecognizeMetadata;
 import com.google.cloud.speech.v1.LongRunningRecognizeResponse;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
-import com.transcriptor.BackEnd.Entities.Paciente;
-import com.transcriptor.BackEnd.repositories.IPacienteRepository;
 
 @Service
 public class TranscriptorService {
     
     @Autowired
-    private IPacienteRepository pacienterepo;
+    private InformeService informeService;
 
     @Autowired
-    private InformeService informeService;
+    private TerminoMedicoService terminoMedicoService;
 
     private final ChatModel chatmodel;
 
@@ -42,34 +39,24 @@ public class TranscriptorService {
         this.chatmodel = chatmodel;
     }
 
-    public InformeMedico crearTranscripcion(String id_paciente, MultipartFile archivo, String tipoEstudio, String emailMedico){
-        // 1. Verificamos que el paciente exista
-        Optional<Paciente> pacienteExiste = pacienterepo.findById(id_paciente);
-
-        if(pacienteExiste.isEmpty()){
-            throw new RuntimeException("Paciente no encontrado");
-        }
-
-        // 2. Hacemos el trabajo pesado con las APIs primero
-        // Extraemos el texto del audio
-        String textoCrudo = escucharAudioGoogle(archivo);
+    public InformeMedico crearTranscripcion(String nombrePaciente, String apellidoPaciente, MultipartFile archivo, String tipoEstudio, String emailMedico){
         
-        // Lo mandamos a estructurar con Gemini 2.x
+        String textoCrudo = escucharAudioGoogle(archivo);
         String textoInteligente = correccionAudioGoogle(textoCrudo, tipoEstudio);
 
-        // 3. Creamos el informe con TODOS los datos ya resueltos
         InformeMedico informeNuevo = new InformeMedico(
-            id_paciente,            // 1. idPaciente
-            emailMedico,                   // 2. idMedico (lo agregaremos más adelante)
-            tipoEstudio,              // 3. tipoEstudio
-            textoCrudo,             // 4. textoCrudo (¡ahora sí se va a guardar!)
-            textoInteligente,       // 5. textoCorregido (la magia de la IA)
-            null,                   // 6. feedbackMedico
-            "PENDIENTE_REVISION",   // 7. estado inicial
-            LocalDateTime.now()     // 8. fechaCreacion (marca la hora actual exacta)
+            null,
+            nombrePaciente,
+            apellidoPaciente,
+            emailMedico,
+            tipoEstudio,
+            textoCrudo,
+            textoInteligente,
+            null,
+            "PENDIENTE_REVISION",
+            LocalDateTime.now()
         );
 
-        // 4. Guardamos en la base de datos una sola vez con el objeto completo
         informeService.crearInforme(informeNuevo);
         
         return informeNuevo;
@@ -81,27 +68,21 @@ public class TranscriptorService {
             InputStream credentialsStream = getClass().getResourceAsStream("/google-credentials.json");
             
             if (credentialsStream != null) {
-                // Modo Desarrollo: Usa el archivo local de tu computadora
                 credenciales = GoogleCredentials.fromStream(credentialsStream);
             } else {
-                // Modo Producción (VPS): Usa la variable de entorno de Docker
                 credenciales = GoogleCredentials.getApplicationDefault();
             }
             
-            // 1. Configuramos Google Cloud Storage para subir el audio temporalmente
             Storage storage = StorageOptions.newBuilder().setCredentials(credenciales).build().getService();
             String projectId = storage.getOptions().getProjectId();
             if (projectId == null) projectId = "transcriptor-ia-app";
             
-            // Creamos un nombre de bucket único por proyecto (nombres deben ser únicos globalmente)
             String bucketName = "audios-tmp-" + projectId;
             
-            // Si el bucket no existe, lo creamos
             if (storage.get(bucketName) == null) {
                 storage.create(BucketInfo.newBuilder(bucketName).build());
             }
 
-            // 2. Subimos el archivo a Storage
             String nombreArchivo = archivo.getOriginalFilename();
             String objectName = java.util.UUID.randomUUID().toString() + "-" + nombreArchivo;
             BlobId blobId = BlobId.of(bucketName, objectName);
@@ -110,7 +91,6 @@ public class TranscriptorService {
             System.out.println("Subiendo archivo a GCS: gs://" + bucketName + "/" + objectName);
             storage.create(blobInfo, archivo.getBytes());
             
-            // 3. Procedemos a transcribir con la URL de GCS
             SpeechSettings configuracionCliente = SpeechSettings.newBuilder()
                     .setCredentialsProvider(FixedCredentialsProvider.create(credenciales))
                     .build();
@@ -120,7 +100,6 @@ public class TranscriptorService {
                 String gcsUri = "gs://" + bucketName + "/" + objectName;
                 RecognitionAudio paqueteAudio = RecognitionAudio.newBuilder().setUri(gcsUri).build();
                 
-                // ---- LA MAGIA DE QA EMPIEZA ACÁ ----
                 RecognitionConfig.Builder configBuilder = RecognitionConfig.newBuilder().setLanguageCode("es-AR");
                 
                 if (nombreArchivo != null && nombreArchivo.toLowerCase().endsWith(".webm")) {
@@ -129,23 +108,19 @@ public class TranscriptorService {
                 }
                 
                 RecognitionConfig configuracion = configBuilder.build();
-                // ---- TERMINA LA MAGIA ----
                 
                 System.out.println("Iniciando transcripción asíncrona de larga duración...");
                 OperationFuture<LongRunningRecognizeResponse, LongRunningRecognizeMetadata> response =
                         speechClient.longRunningRecognizeAsync(configuracion, paqueteAudio);
                 
-                // Esperamos a que termine el procesamiento en Google
                 while (!response.isDone()) {
                     System.out.println("Esperando a que Google termine de transcribir (espere)...");
                     Thread.sleep(3000);
                 }
                 
-                // 4. Borramos el archivo inmediatamente para que sea gratis (capa siempre gratuita)
                 System.out.println("Transcripción terminada. Borrando audio de GCS...");
                 storage.delete(blobId);
 
-                // 5. Unimos todos los fragmentos transcriptos
                 StringBuilder reporteCompleto = new StringBuilder();
                 for (com.google.cloud.speech.v1.SpeechRecognitionResult result : response.get().getResultsList()) {
                     reporteCompleto.append(result.getAlternativesList().get(0).getTranscript()).append(" ");
@@ -161,72 +136,49 @@ public class TranscriptorService {
     }
 
     private String correccionAudioGoogle(String textoCrudo, String tipoEstudio) {
-    String contextoIA = """
-            Sos un médico especialista en diagnóstico por imágenes con amplia experiencia
-            en la redacción de informes radiológicos en español rioplatense.
+        // Traemos el diccionario médico completo para dárselo como contexto a la IA
+        String diccionario = terminoMedicoService.listarComoTextoParaPrompt();
 
-            Tu tarea es tomar el texto dictado por el médico (que puede venir desordenado,
-            sin puntuación, o con muletillas) y convertirlo en un informe de diagnóstico
-            por imágenes correctamente estructurado, correspondiente al siguiente estudio:
-
-            Tipo de estudio: %s
-
-            Reglas para redactar el informe:
-            1. NO inventes hallazgos, medidas ni datos que no estén explícita o
-               implícitamente en el texto dictado. Si el médico no mencionó algo,
-               no lo completes por tu cuenta.
-            2. Usá terminología médica formal y precisa, propia de un informe de
-               diagnóstico por imágenes (no de una consulta clínica general).
-            3. Organizá los HALLAZGOS agrupándolos por estructura u órgano anatómico
-               relevante para este tipo de estudio (por ejemplo, para una tomografía
-               de cráneo: parénquima encefálico, sistema ventricular, estructuras óseas;
-               para una ecografía abdominal: hígado, vesícula, riñones, páncreas; adaptá
-               las secciones al estudio indicado arriba, no uses siempre las mismas).
-            4. Si el texto menciona la técnica utilizada (espesor de corte, uso de
-               contraste, planos de reconstrucción), incluila en una sección de
-               TÉCNICA al inicio. Si no se menciona, omitila (no la inventes).
-            5. Cerrá siempre con una sección de CONCLUSIÓN (o IMPRESIÓN DIAGNÓSTICA)
-               que resuma en pocas líneas el hallazgo más relevante, en el mismo
-               tono que usaría un médico especialista al firmar el informe.
-            6. Formato de salida: texto plano, con los títulos de sección en mayúsculas
-               seguidos de dos puntos (ej. "HALLAZGOS:"), sin usar markdown (nada de
-               asteriscos ni almohadillas), porque este texto se va a insertar
-               directamente en un documento Word/PDF.
-
-            Texto dictado a transcribir:
-            %s
-            """.formatted(tipoEstudio, textoCrudo);
-
-    try {
-        var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
-                .withModel("gemini-2.5-flash-lite")
-                .build();
-
-        var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
-
-        return chatmodel.call(prompt).getResult().getOutput().getContent();
-    } catch (Exception e) {
-        System.err.println("========== ERROR CRÍTICO DE VERTEX AI ==========");
-        e.printStackTrace();
-        System.err.println("================================================");
-        throw new RuntimeException("Falló la IA: " + e.getMessage());
-    }
-}
-
-    private String feedbackGoogle(String textoActual, String feedbackMedico) {
         String contextoIA = """
-                Sos un asistente médico profesional experto en transcripción clínica.
-                A continuación te voy a pasar un informe médico que ya fue estructurado, y un comentario/feedback del doctor con correcciones o agregados que quiere hacerle.
-                
-                Tu tarea es reescribir el informe médico aplicando EXACTAMENTE las correcciones que pide el doctor.
-                Mantené el formato estructurado profesional (Motivo de consulta, Síntomas, etc.) y no inventes información médica que no esté en el texto original o en el feedback.
-                
-                --- INFORME ACTUAL ---
+                Sos un médico especialista en diagnóstico por imágenes con amplia experiencia
+                en la redacción de informes radiológicos en español rioplatense.
+
+                Tu tarea es tomar el texto dictado por el médico (que puede venir desordenado,
+                sin puntuación, o con muletillas) y convertirlo en un informe de diagnóstico
+                por imágenes correctamente estructurado, correspondiente al siguiente estudio:
+
+                Tipo de estudio: %s
+
+                Reglas para redactar el informe:
+                1. NO inventes hallazgos, medidas ni datos que no estén explícita o
+                   implícitamente en el texto dictado. Si el médico no mencionó algo,
+                   no lo completes por tu cuenta.
+                2. Usá terminología médica formal y precisa, propia de un informe de
+                   diagnóstico por imágenes (no de una consulta clínica general).
+                3. Organizá los HALLAZGOS agrupándolos por estructura u órgano anatómico
+                   relevante para este tipo de estudio (por ejemplo, para una tomografía
+                   de cráneo: parénquima encefálico, sistema ventricular, estructuras óseas;
+                   para una ecografía abdominal: hígado, vesícula, riñones, páncreas; adaptá
+                   las secciones al estudio indicado arriba, no uses siempre las mismas).
+                4. Si el texto menciona la técnica utilizada (espesor de corte, uso de
+                   contraste, planos de reconstrucción), incluila en una sección de
+                   TÉCNICA al inicio. Si no se menciona, omitila (no la inventes).
+                5. Cerrá siempre con una sección de CONCLUSIÓN (o IMPRESIÓN DIAGNÓSTICA)
+                   que resuma en pocas líneas el hallazgo más relevante, en el mismo
+                   tono que usaría un médico especialista al firmar el informe.
+                6. Formato de salida: texto plano, con los títulos de sección en mayúsculas
+                   seguidos de dos puntos (ej. "HALLAZGOS:"), sin usar markdown (nada de
+                   asteriscos ni almohadillas), porque este texto se va a insertar
+                   directamente en un documento Word/PDF.
+
+                Vocabulario de referencia del centro: si el texto dictado contiene una palabra
+                parecida fonéticamente a alguno de estos términos pero mal transcripta por el
+                reconocimiento de voz, corregila al término correcto de esta lista:
                 %s
-                
-                --- FEEDBACK DEL DOCTOR ---
+
+                Texto dictado a transcribir:
                 %s
-                """.formatted(textoActual, feedbackMedico);
+                """.formatted(tipoEstudio, diccionario, textoCrudo);
 
         try {
             var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
@@ -236,35 +188,67 @@ public class TranscriptorService {
             var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
 
             return chatmodel.call(prompt).getResult().getOutput().getContent();
-            
         } catch (Exception e) {
-            System.err.println("========== ERROR EN REESCRITURA CON VERTEX AI ==========");
+            System.err.println("========== ERROR CRÍTICO DE VERTEX AI ==========");
             e.printStackTrace();
-            throw new RuntimeException("Falló la IA al reescribir: " + e.getMessage());
+            System.err.println("================================================");
+            throw new RuntimeException("Falló la IA: " + e.getMessage());
         }
     }
-    public InformeMedico reescribirInformeConFeedback(String idInforme, String feedback) {
-        
-        // 1. Buscá el informe en la base de datos por su ID usando informeService
-        // Pista: 
-        InformeMedico informeEncontrado = informeService.buscarInformeId(idInforme);
-        
-        // 2. Extraé el texto que la IA había generado originalmente.
-        // Pista: 
-        String textoActual = informeEncontrado.getTextoCorregido();
 
-        // 3. (Dejar comentado) Llamada a Vertex AI. 
-         String nuevoTexto = feedbackGoogle(textoActual, feedback);
+    private String feedbackGoogle(String textoActual, String feedbackMedico) {
+    String contextoIA = """
+            Sos un médico especialista en diagnóstico por imágenes con amplia experiencia
+            en la redacción de informes radiológicos en español rioplatense.
+
+            A continuación te voy a pasar un informe de diagnóstico por imágenes que ya fue
+            estructurado (con secciones como TÉCNICA, HALLAZGOS y CONCLUSIÓN), y un comentario
+            o feedback del médico con correcciones o agregados que quiere hacerle.
+
+            Tu tarea es reescribir el informe aplicando EXACTAMENTE las correcciones que pide
+            el médico, manteniendo la estructura de informe de diagnóstico por imágenes
+            (TÉCNICA, HALLAZGOS organizados por estructura anatómica, y CONCLUSIÓN al final).
+            NO cambies el informe a un formato de consulta clínica general.
+            NO inventes hallazgos, medidas ni datos que no estén en el texto original o en
+            el feedback del médico.
+
+            Formato de salida: texto plano, con los títulos de sección en mayúsculas seguidos
+            de dos puntos, sin usar markdown (nada de asteriscos ni almohadillas), porque este
+            texto se va a insertar directamente en un documento Word/PDF.
+
+            --- INFORME ACTUAL ---
+            %s
+
+            --- FEEDBACK DEL MÉDICO ---
+            %s
+            """.formatted(textoActual, feedbackMedico);
+
+    try {
+        var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
+                .withModel("gemini-2.5-flash-lite")
+                .build();
+
+        var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
+
+        return chatmodel.call(prompt).getResult().getOutput().getContent();
         
-        // 4. Actualizá el informe con el nuevo texto y agregá el feedback.
-         informeEncontrado.setTextoCorregido(nuevoTexto); // (Comentado por ahora)
+    } catch (Exception e) {
+        System.err.println("========== ERROR EN REESCRITURA CON VERTEX AI ==========");
+        e.printStackTrace();
+        throw new RuntimeException("Falló la IA al reescribir: " + e.getMessage());
+    }
+    }
+    
+    public InformeMedico reescribirInformeConFeedback(String idInforme, String feedback) {
+        InformeMedico informeEncontrado = informeService.buscarInformeId(idInforme);
+        String textoActual = informeEncontrado.getTextoCorregido();
+        String nuevoTexto = feedbackGoogle(textoActual, feedback);
+        
+        informeEncontrado.setTextoCorregido(nuevoTexto); 
         informeEncontrado.setFeedback(feedback);
 
-        
         informeService.crearInforme(informeEncontrado);
-        
         
         return informeEncontrado; 
     }
-
 }

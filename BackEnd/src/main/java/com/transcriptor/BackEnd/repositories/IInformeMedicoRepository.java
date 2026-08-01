@@ -9,5 +9,5 @@ import com.transcriptor.BackEnd.Entities.InformeMedico;
 
 @Repository
 public interface IInformeMedicoRepository extends MongoRepository<InformeMedico, String>{
-     List<InformeMedico> findByIdPaciente(String idPaciente);
+     List<InformeMedico> findByIdMedico(String idMedico);
 }

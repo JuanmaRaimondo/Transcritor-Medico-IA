@@ -40,7 +40,8 @@ public class InformeController {
 
     @PostMapping("/subir-audio")
     public ResponseEntity<?> subirAudio(
-            @RequestParam("idpaciente") String idpaciente, 
+           @RequestParam("nombrePaciente") String nombrePaciente,
+            @RequestParam("apellidoPaciente") String apellidoPaciente,
             @RequestParam("audio") MultipartFile archivo, 
             @RequestParam("tipoEstudio") String tipoEstudio, 
             Authentication authentication) {
@@ -70,7 +71,7 @@ public class InformeController {
 
         try {
             // Mandamos al servicio y guardamos el informe generado
-            InformeMedico informeGenerado = transcriptorService.crearTranscripcion(idpaciente, archivo, tipoEstudio, authentication.getName());
+            InformeMedico informeGenerado = transcriptorService.crearTranscripcion(nombrePaciente, apellidoPaciente, archivo, tipoEstudio, authentication.getName());
             
             // Devolvemos el JSON del informe al Frontend (código 200 OK) para que llene la Tarjeta 3
             return ResponseEntity.ok(informeGenerado);
@@ -81,14 +82,18 @@ public class InformeController {
         }
     }
 
-    @GetMapping("/traerlistaInformes/{idPaciente}")
-    public List<InformeMedico> traerInformesxPaciente(@PathVariable String idPaciente){
-        return informeService.traerInformesPorPaciente(idPaciente);
-    }
+    @GetMapping("/buscar")
+    public List<InformeMedico> buscarInformes(
+        @RequestParam(required = false) String nombrePaciente,
+        @RequestParam(required = false) String apellidoPaciente,
+        @RequestParam(required = false) String tipoEstudio,
+        Authentication authentication) {
+    return informeService.buscarInformes(authentication.getName(), nombrePaciente, apellidoPaciente, tipoEstudio);
+}
 
     @GetMapping("/traerTodos")
-    public List<InformeMedico> traerTodosLosInformes() {
-        return informeService.traerTodosLosInformes();
+    public List<InformeMedico> traerTodosLosInformes(Authentication authentication) {
+    return informeService.traerInformesPorMedico(authentication.getName());
     }
 
     @PutMapping("/editar/{idInforme}")
