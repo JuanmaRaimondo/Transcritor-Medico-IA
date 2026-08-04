@@ -1,6 +1,6 @@
 package com.transcriptor.BackEnd.Entities;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -12,21 +12,13 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "informes")
-public class InformeMedico {
+@Document(collection="plantillas")
+public class Plantilla {
     @Id
     private String id;
-    private String nombrePaciente;
-    private String apellidoPaciente;
-    private String idMedico;
-
     private String tipoEstudio;
     private String procedimiento;
-    private String textoCrudo;
-    private String textoCorregido;
-    private String feedback;
-
-    private String estado;
-    private LocalDateTime fechaCreacion;
-    
-}
+    private List<String> opcionesCorte;
+    private List<String> opcionesLateralidad;
+    private List<String> bancoDeFrases;
+ }

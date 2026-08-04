@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.transcriptor.BackEnd.DTOs.AprobarInformeDTO;
+import com.transcriptor.BackEnd.DTOs.CrearInformeDesdePlantillaDTO;
 import com.transcriptor.BackEnd.DTOs.FeedbackRequestDTO;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
 import com.transcriptor.BackEnd.services.InformeService;
@@ -143,6 +144,29 @@ public class InformeController {
             return ResponseEntity.ok(informe);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/crear-desde-plantilla")
+    public ResponseEntity<?> crearInformeDesdePlantilla(@RequestBody CrearInformeDesdePlantillaDTO datos, Authentication authentication) {
+        try {
+            InformeMedico informe = informeService.crearInformeDesdePlantilla(datos, authentication.getName());
+            return ResponseEntity.ok(informe);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error al crear el informe: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/transcribir-fragmento")
+    public ResponseEntity<?> transcribirFragmento(@RequestParam("audio") MultipartFile archivo) {
+        if (archivo.isEmpty()) {
+            return ResponseEntity.badRequest().body("Error: el archivo está vacío.");
+        }
+        try {
+            String texto = transcriptorService.transcribirFragmento(archivo);
+            return ResponseEntity.ok(java.util.Map.of("texto", texto));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error al transcribir: " + e.getMessage());
         }
     }
 }

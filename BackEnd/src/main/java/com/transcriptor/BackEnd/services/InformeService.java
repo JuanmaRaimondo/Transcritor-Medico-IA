@@ -1,5 +1,6 @@
 package com.transcriptor.BackEnd.services;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,7 +9,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import com.transcriptor.BackEnd.DTOs.CrearInformeDesdePlantillaDTO;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
+import com.transcriptor.BackEnd.Entities.Plantilla;
 import com.transcriptor.BackEnd.repositories.IInformeMedicoRepository;
 
 @Service
@@ -20,10 +23,36 @@ public class InformeService {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+    @Autowired
+    private PlantillaService plantillaService;
+
     public InformeMedico crearInforme(InformeMedico informe){
         return informerepo.save(informe);
     }
 
+    public InformeMedico crearInformeDesdePlantilla(CrearInformeDesdePlantillaDTO datos, String idMedico){
+    // Validamos que el tipo de estudio sea uno soportado (mismo enum que ya usás en dictado libre)
+    com.transcriptor.BackEnd.Entities.TipoEstudio.fromLabel(datos.tipoEstudio());
+
+    Plantilla plantilla = plantillaService.buscarPorTipoEstudio(datos.tipoEstudio());
+    String procedimientoResuelto = plantillaService.resolverProcedimiento(plantilla, datos.valoresPlaceholders());
+
+    InformeMedico informeNuevo = new InformeMedico(
+        null,
+        datos.nombrePaciente(),
+        datos.apellidoPaciente(),
+        idMedico,
+        datos.tipoEstudio(),
+        procedimientoResuelto,
+        null,                       // textoCrudo — no aplica, la interpretación ya viene armada del frontend
+        datos.interpretacion(),     // lo que el médico armó con chips + dictado
+        null,
+        "PENDIENTE_REVISION",
+        LocalDateTime.now()
+    );
+
+    return crearInforme(informeNuevo);
+}
 
     public List<InformeMedico> traerInformesPorMedico(String idMedico){
         return informerepo.findByIdMedico(idMedico);

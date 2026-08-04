@@ -53,6 +53,7 @@ public class TranscriptorService {
             apellidoPaciente,
             emailMedico,
             tipoEstudio,
+            null,
             textoCrudo,
             textoInteligente,
             null,
@@ -253,5 +254,8 @@ public class TranscriptorService {
         informeService.crearInforme(informeEncontrado);
         
         return informeEncontrado; 
+    }
+    public String transcribirFragmento(MultipartFile archivo){
+    return escucharAudioGoogle(archivo);
     }
 }
