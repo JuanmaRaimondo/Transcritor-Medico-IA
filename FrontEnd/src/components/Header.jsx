@@ -27,11 +27,13 @@ const Header = () => {
                     <div className="flex items-center gap-2">
                         <User size={20} className="text-secondary" />
                         <span style={{ fontWeight: 500 }}>
-                            Dr(a). {user?.nombre || 'Médico'}
+                            Dr(a). {user?.nombre || 'Médico'} {user?.apellido || ''}
                         </span>
-                        <span className="badge badge-info" style={{ marginLeft: '4px' }}>
-                            {user?.especialidad || 'General'}
-                        </span>
+                        {user?.matricula && (
+                            <span className="badge badge-info" style={{ marginLeft: '4px' }}>
+                                M.P. {user.matricula}
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={handleLogout}

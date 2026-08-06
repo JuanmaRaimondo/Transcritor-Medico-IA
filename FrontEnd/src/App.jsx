@@ -6,11 +6,11 @@ import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import Login from './pages/Login';
-import Register from './pages/Register';
-import CambiarPassword from './pages/CambiarPassword';
+import Menu from './pages/Menu';
 import Dashboard from './pages/Dashboard';
 import ReviewReport from './pages/ReviewReport';
 import NewReport from './pages/NewReport';
+import PlantillaReport from './pages/PlantillaReport';
 import FAQ from './pages/FAQ';
 
 function App() {
@@ -27,61 +27,19 @@ function App() {
             boxShadow: 'var(--shadow-lg)',
             borderRadius: 'var(--radius-md)'
           },
-          success: {
-            iconTheme: {
-              primary: 'var(--success)',
-              secondary: 'white',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: 'var(--danger)',
-              secondary: 'white',
-            },
-          },
+          success: { iconTheme: { primary: 'var(--success)', secondary: 'white' } },
+          error: { iconTheme: { primary: 'var(--danger)', secondary: 'white' } },
         }}
       />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/cambiar-password" element={<CambiarPassword />} />
-
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/review/:id"
-            element={
-              <ProtectedRoute>
-                <ReviewReport />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/new-report"
-            element={
-              <ProtectedRoute>
-                <NewReport />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/faq"
-            element={
-              <ProtectedRoute>
-                <FAQ />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
+          <Route path="/informes" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/review/:id" element={<ProtectedRoute><ReviewReport /></ProtectedRoute>} />
+          <Route path="/new-report" element={<ProtectedRoute><NewReport /></ProtectedRoute>} />
+          <Route path="/new-report-plantilla" element={<ProtectedRoute><PlantillaReport /></ProtectedRoute>} />
+          <Route path="/faq" element={<ProtectedRoute><FAQ /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

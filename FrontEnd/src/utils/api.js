@@ -16,7 +16,7 @@ api.interceptors.request.use(
     
     // CAMBIO 2: Solo evitamos enviar el token en login y register.
     // Si la ruta NO es login y NO es register, entonces SÍ manda el token.
-    const isAuthRoute = config.url.includes('/login') || config.url.includes('/register');
+    const isAuthRoute = config.url.includes('/api/auth/google');
     
     if (token && !isAuthRoute) {
       config.headers['Authorization'] = `Bearer ${token}`;

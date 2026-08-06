@@ -16,20 +16,17 @@ const Login = () => {
         const googleToken = credentialResponse.credential;
 
         try {
-            // Mandamos el token de Google a tu backend en Java
             const response = await api.post('/api/auth/google', { token: googleToken });
-            
-            // Spring Boot nos va a responder con los datos y tu token propio de sesión
-            const { token, nombre, email, especialidad } = response.data;
+
+            const { token, nombre, email, apellido, matricula } = response.data;
 
             if (token) {
-                const userInfo = { nombre, email, especialidad };
-                
-                // Iniciamos sesión en el estado global de React
+                const userInfo = { nombre, email, apellido, matricula };
+
                 login(token, userInfo);
-                
+
                 toast.success('¡Ingreso exitoso!');
-                navigate('/'); // Al dashboard o pantalla principal
+                navigate('/');
             } else {
                 toast.error('Error al procesar la sesión en el servidor');
             }
@@ -55,10 +52,10 @@ const Login = () => {
                     </p>
                 </div>
 
-                <div style={{ 
-                    display: 'flex', 
+                <div style={{
+                    display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center', 
+                    alignItems: 'center',
                     justifyContent: 'center',
                     gap: '1.5rem',
                     minHeight: '100px'
@@ -67,7 +64,6 @@ const Login = () => {
                         <div className="spinner" style={{ width: '40px', height: '40px' }}></div>
                     ) : (
                         <>
-                            {/* BOTÓN ÚNICO DE ACCESO */}
                             <GoogleLogin
                                 onSuccess={handleGoogleSuccess}
                                 onError={() => {
