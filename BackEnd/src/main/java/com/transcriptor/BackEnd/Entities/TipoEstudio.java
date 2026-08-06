@@ -3,7 +3,6 @@ package com.transcriptor.BackEnd.Entities;
 public enum TipoEstudio {
 
     // Tomografías Computadas
-    TC_CRANEO("TC de Cráneo"),
     TC_MACIZO_FACIAL_SENOS_PARANASALES("TC Macizo Facial y Senos Paranasales"),
     TC_ABDOMEN_PELVIS("TC de Abdomen y Pelvis"),
     TC_TORAX("TC de Tórax"),
