@@ -3,6 +3,7 @@ package com.transcriptor.BackEnd.controllers;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +21,7 @@ import com.transcriptor.BackEnd.DTOs.AprobarInformeDTO;
 import com.transcriptor.BackEnd.DTOs.CrearInformeDesdePlantillaDTO;
 import com.transcriptor.BackEnd.DTOs.FeedbackRequestDTO;
 import com.transcriptor.BackEnd.Entities.InformeMedico;
+import com.transcriptor.BackEnd.services.ExportService;
 import com.transcriptor.BackEnd.services.InformeService;
 import com.transcriptor.BackEnd.services.TranscriptorService;
 
@@ -169,4 +171,40 @@ public class InformeController {
             return ResponseEntity.internalServerError().body("Error al transcribir: " + e.getMessage());
         }
     }
+    @Autowired
+private ExportService exportService;
+
+@GetMapping("/{id}/docx")
+public ResponseEntity<byte[]> descargarDocx(@PathVariable String id) {
+    InformeMedico informe = informeService.buscarInformeId(id);
+    if (!"REVISADO".equals(informe.getEstado())) {
+        return ResponseEntity.badRequest().body(null);
+    }
+    try {
+        byte[] docx = exportService.generarDocx(informe);
+        return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=informe-" + id + ".docx")
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+            .body(docx);
+    } catch (Exception e) {
+        return ResponseEntity.internalServerError().build();
+    }
+}
+
+@GetMapping("/{id}/pdf")
+public ResponseEntity<byte[]> descargarPdf(@PathVariable String id) {
+    InformeMedico informe = informeService.buscarInformeId(id);
+    if (!"REVISADO".equals(informe.getEstado())) {
+        return ResponseEntity.badRequest().body(null);
+    }
+    try {
+        byte[] pdf = exportService.generarPdf(informe);
+        return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=informe-" + id + ".pdf")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(pdf);
+    } catch (Exception e) {
+        return ResponseEntity.internalServerError().build();
+    }
+}
 }

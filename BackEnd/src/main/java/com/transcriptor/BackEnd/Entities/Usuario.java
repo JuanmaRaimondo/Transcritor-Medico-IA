@@ -24,6 +24,7 @@ public class Usuario implements UserDetails{
     private String password;
     private String rol;
     private List<String> preferenciasIA;
+    private String matricula;
 
     public Usuario(){}
 

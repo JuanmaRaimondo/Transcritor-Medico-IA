@@ -48,6 +48,7 @@ public class UsuarioService implements UserDetailsService{
         usuarioEncontrado.setNombre(usuario.getNombre());
         usuarioEncontrado.setEmail(usuario.getEmail());
         usuarioEncontrado.setPreferenciasIA(usuario.getPreferenciasIA());
+        usuarioEncontrado.setMatricula(usuario.getMatricula());
 
         usuariorepo.save(usuarioEncontrado);
         return usuarioEncontrado;

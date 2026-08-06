@@ -43,7 +43,8 @@ public class AuthController {
             tokenGenerado, 
             usuario.getNombre(), 
             usuario.getEmail(), 
-            usuario.getApellido() 
+            usuario.getApellido(),
+            usuario.getMatricula() 
         ));
     }
 
@@ -57,7 +58,8 @@ public class AuthController {
         nuevoUsuario.setNombre(request.nombre());
         nuevoUsuario.setEmail(request.email());
         nuevoUsuario.setPassword(request.password());
-        nuevoUsuario.setApellido(request.apellido()); 
+        nuevoUsuario.setApellido(request.apellido());
+        nuevoUsuario.setMatricula(request.matricula()); 
         
         // 3. Le asignamos un rol por defecto. Spring Security suele requerir el prefijo "ROLE_"
         nuevoUsuario.setRol("ROLE_MEDICO"); 
@@ -135,7 +137,7 @@ public class AuthController {
                     usuario.setRol("ROLE_MEDICO");
                     // Le asignamos una contraseña aleatoria encriptada segura (porque nunca la va a usar de forma manual)
                     usuario.setPassword(org.springframework.security.crypto.bcrypt.BCrypt.hashpw(java.util.UUID.randomUUID().toString(), org.springframework.security.crypto.bcrypt.BCrypt.gensalt()));
-                    
+                    usuario.setMatricula(null);
                     // Guardamos el nuevo usuario en MongoDB
                     usuario = usuarioService.usuarioNuevo(usuario);
                 }
@@ -148,7 +150,8 @@ public class AuthController {
                     tokenGenerado,
                     usuario.getNombre(),
                     usuario.getEmail(),
-                    usuario.getApellido() 
+                    usuario.getApellido(),
+                    usuario.getMatricula() 
                 ));
 
             } else {
