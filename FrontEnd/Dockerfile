@@ -22,6 +22,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Configurar archivo temporal de Nginx para soportar rutas dinámicas en SPA (React Router)
 RUN echo -e 'server {\n\
     listen 80;\n\
+    client_max_body_size 20M;\n\
     location / {\n\
         root /usr/share/nginx/html;\n\
         index index.html index.htm;\n\
