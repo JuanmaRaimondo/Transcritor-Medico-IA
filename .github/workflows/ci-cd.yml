@@ -92,7 +92,7 @@ jobs:
           port: 22
           script: |
             # Ir al directorio del proyecto en el VPS
-            cd "/var/www/transcriptor-medico" || cd "$HOME/transcriptor-medico"
+            cd /root/proyectos/Transcritor-Medico-IA || { echo "ERROR: no se encontró el directorio del proyecto"; exit 1; }
             
             # Obtener los últimos cambios de la rama main
             git pull origin main
