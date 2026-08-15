@@ -95,7 +95,8 @@ jobs:
             cd /root/proyectos/Transcritor-Medico-IA || { echo "ERROR: no se encontró el directorio del proyecto"; exit 1; }
             
             # Obtener los últimos cambios de la rama main
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
             
             # Re-compilar y levantar los contenedores con docker-compose
             docker compose down
