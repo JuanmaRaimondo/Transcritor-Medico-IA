@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile
     container_name: transcriptor_frontend
     ports:
-      - "80:80"
+      - "8081:80"
     depends_on:
       - backend
     networks:
