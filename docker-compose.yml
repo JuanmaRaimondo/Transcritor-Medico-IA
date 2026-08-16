@@ -1,14 +1,12 @@
-version: '3.8'
 services:
   mongodb:
     image: mongo:6.0
     container_name: transcriptor_db
+    command: ["--auth"]
     volumes:
       - ./mongo-data:/data/db
     networks:
       - transcriptor-net
-    # sin "ports" — ya no es alcanzable desde fuera del servidor,
-    # solo desde los otros contenedores por la red interna
 
   backend:
     build: 
@@ -18,7 +16,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/informes_medicos_db
+      - SPRING_DATA_MONGODB_URI=mongodb://app_backend:${MONGO_APP_PASSWORD}@mongodb:27017/informes_medicos_db?authSource=informes_medicos_db
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+    volumes:
+      - ./google-credentials.json:/app/google-credentials.json
     depends_on:
       - mongodb
     networks:
