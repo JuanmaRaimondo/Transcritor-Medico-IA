@@ -1,1 +1,3 @@
-mongo-data/google-credentials.json
+mongo-data/
+google-credentials.json
+.env
