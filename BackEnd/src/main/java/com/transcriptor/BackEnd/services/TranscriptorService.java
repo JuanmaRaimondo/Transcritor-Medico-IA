@@ -186,7 +186,7 @@ public class TranscriptorService {
 
         try {
             var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
-                    .withModel("gemini-2.5-flash-lite")
+                    .withModel("gemini-3.1-flash-lite")
                     .build();
 
             var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
@@ -229,7 +229,7 @@ public class TranscriptorService {
 
     try {
         var opciones = org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions.builder()
-                .withModel("gemini-2.5-flash-lite")
+                .withModel("gemini-3.1-flash-lite")
                 .build();
 
         var prompt = new org.springframework.ai.chat.prompt.Prompt(contextoIA, opciones);
